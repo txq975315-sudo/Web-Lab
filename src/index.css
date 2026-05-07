@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+      'Segoe UI', 'Roboto', 'Helvetica Neue', 'PingFang SC',
+      'Microsoft YaHei', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    background-color: #F9FAFB;
+    color: #374151;
+    line-height: 1.6;
+    letter-spacing: 0.01em;
+  }
+}
+
+@layer utilities {
+  .spacing-module-xs { padding: 4px; }
+  .spacing-module-sm { padding: 8px; }
+  .spacing-module-md { padding: 16px; }
+  .spacing-module-lg { padding: 24px; }
+  .spacing-module-xl { padding: 32px; }
+  .spacing-module-2xl { padding: 48px; }
+}
+
+@keyframes highlightPulse {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(139, 92, 246, 0.15); }
+}
+
+.highlight-pulse {
+  animation: highlightPulse 2s ease-in-out;
+  border-radius: 6px;
+}
+
+.project-dashboard {
+  border-bottom: 1px solid #E5E7EB;
+  background: linear-gradient(to bottom, #FAFAFA, transparent);
+}
+
+.project-dashboard button:focus {
+  outline: none;
+}
