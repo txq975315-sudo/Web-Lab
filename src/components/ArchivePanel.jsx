@@ -4,6 +4,7 @@ import { renderContentWithLinks, insertWikiLink, collectAllDocNames, buildDocMap
 import { TEMPLATE_TYPES, getTemplateLabel, getTemplateIcon, createDefaultFields, getForcedCategory } from '../config/templates'
 import DocumentForm from './DocumentForm'
 import DocumentRenderer from './DocumentRenderer'
+import DocumentDetail from './DocumentDetail'
 
 function Spinner() {
   return (
@@ -422,7 +423,7 @@ function TemplateSelector({ onSelect, onClose, activeProject }) {
 }
 
 function DocumentSection({ doc }) {
-  const { standardizeContent, updateDocument, navigateToDoc, projectTree, addDocument, toggleDecisionStatus } = useLab()
+  const { standardizeContent, updateDocument, navigateToDoc, projectTree, addDocument, toggleDecisionStatus, documentConflicts, auditConstitutionVsPRD, activeProjectId, expertMode, switchExpertMode, summonMentor } = useLab()
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editContent, setEditContent] = useState(doc.content || '')
@@ -692,10 +693,84 @@ function DocumentSection({ doc }) {
                   <path d="M4 6H8M6 4V8" stroke="#8B5CF6" strokeWidth="1" strokeLinecap="round" />
                 </svg>
               </button>
+              <button
+                onClick={() => summonMentor(doc.id)}
+                className="flex items-center justify-center px-2 h-7 rounded-lg transition-all hover:scale-105 active:scale-95 text-xs font-medium"
+                style={{ backgroundColor: '#8B5CF6', color: 'white', border: 'none' }}
+                title="召唤导师深度追问"
+              >
+                ✨ 召唤导师
+              </button>
             </>
           )}
         </div>
       </div>
+
+      {documentConflicts[doc.id]?.hasConflict && (
+        <div
+          className="mb-4 p-4 rounded-xl"
+          style={{
+            backgroundColor: '#FFFBEB',
+            border: '1px solid #FEF3C7'
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              className="flex-shrink-0 mt-0.5"
+            >
+              <path
+                d="M8 2L14 12H2L8 2Z"
+                stroke="#F59E0B"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path d="M8 5V8" stroke="#F59E0B" strokeWidth="1.2" strokeLinecap="round" />
+              <circle cx="8" cy="11" r="1" fill="#F59E0B" />
+            </svg>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-amber-900">宪法冲突检测</h4>
+                <button
+                  onClick={() => auditConstitutionVsPRD(activeProjectId, doc.id)}
+                  className="text-xs px-2 py-1 rounded-lg font-medium text-amber-700 hover:bg-amber-100 transition-colors"
+                >
+                  重新检测
+                </button>
+              </div>
+              <p className="text-xs text-amber-700 mt-1">{documentConflicts[doc.id]?.summary}</p>
+              <div className="mt-2 space-y-1.5">
+                {documentConflicts[doc.id]?.conflicts.map((conflict, idx) => (
+                  <div
+                    key={idx}
+                    className="text-xs p-2 rounded-lg"
+                    style={{ backgroundColor: 'rgba(251, 191, 36, 0.1)' }}
+                  >
+                    <div className="font-medium text-amber-800">违反约束 #{conflict.constraintIndex + 1}</div>
+                    <div className="text-amber-600 mt-0.5">约束: {conflict.constraintText}</div>
+                    <div className="text-amber-600">冲突: {conflict.prdViolation}</div>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  if (expertMode !== 'pressure') {
+                    switchExpertMode('pressure')
+                  }
+                }}
+                className="mt-3 text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-all hover:scale-105"
+                style={{ backgroundColor: '#8B5CF6' }}
+              >
+                🔍 开启压力测试
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         className="p-5 rounded-xl"
@@ -771,20 +846,74 @@ function DocumentSection({ doc }) {
 }
 
 export default function ArchivePanel() {
-  const { activeProject, allDocuments, activeDocId, setActiveDocId, addDocument } = useLab()
+  const { activeProject, allDocuments, activeDocId, setActiveDocId, addDocument, findNodeById } = useLab()
   const scrollRef = useRef(null)
   const [showNewDocSelector, setShowNewDocSelector] = useState(false)
 
-  useEffect(() => {
-    if (activeDocId && scrollRef.current) {
-      const el = document.getElementById(`section-${activeDocId}`)
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        el.classList.add('highlight-pulse')
-        setTimeout(() => el.classList.remove('highlight-pulse'), 2000)
+  // 安全访问 allDocuments，防止 undefined 错误
+  const safeAllDocuments = Array.isArray(allDocuments) ? allDocuments : []
+
+  const getActiveDocument = () => {
+    if (!activeDocId) {
+      return null
+    }
+
+    // 1. 先从 safeAllDocuments 中查找（最快）
+    let doc = safeAllDocuments.find(d => d && d.id === activeDocId)
+    if (doc) {
+      return doc
+    }
+
+    // 2. 使用 findNodeById 从项目树递归查找
+    if (findNodeById) {
+      try {
+        doc = findNodeById(activeDocId)
+        if (doc && (doc.type === 'document' || doc.docType)) {
+          return doc
+        }
+      } catch (error) {
+        console.error('❌ findNodeById 调用失败:', error)
       }
     }
-  }, [activeDocId])
+
+    // 3. 特殊处理：如果 activeDocId 是 'core-positioning' 或包含 'manifesto'
+    if ((activeDocId === 'core-positioning' || activeDocId.includes('manifesto')) && activeProject) {
+      const manifestoDoc = activeProject.children?.flatMap(cat => cat.children || [])
+        .find(doc => doc.docType === 'manifesto' || doc.typeKey === 'manifesto' || doc.id.includes('manifesto'))
+
+      if (manifestoDoc) {
+        return manifestoDoc
+      }
+    }
+
+    // 4. 最后尝试：在 activeProject 的所有子节点中深度搜索
+    if (activeProject?.children) {
+      for (const category of activeProject.children) {
+        if (!category.children) continue
+
+        // 精确匹配或模糊匹配
+        const found = category.children.find(doc =>
+          doc.id === activeDocId ||
+          doc.docType === activeDocId ||
+          doc.typeKey === activeDocId ||
+          doc.id.includes(activeDocId) ||
+          activeDocId.includes(doc.id)
+        )
+
+        if (found) {
+          return found
+        }
+      }
+    }
+
+    return null
+  }
+
+  const activeDocument = getActiveDocument()
+
+  useEffect(() => {
+    // 监听 activeDocId 和 activeDocument 变化
+  }, [activeDocId, activeDocument])
 
   const handleCreateDocument = (templateType, categoryId) => {
     setShowNewDocSelector(false)
@@ -802,6 +931,52 @@ export default function ArchivePanel() {
     }, 200)
   }
 
+  const handleBackToOverview = () => {
+    setActiveDocId(null)
+  }
+
+  const handleSummonMentorForDoc = (doc) => {
+    console.log('🎓 召唤导师查看文档:', doc.name || doc.id)
+  }
+
+  // ========== 核心渲染逻辑 ==========
+  // 情况 1：选中了具体文档且找到了 → 显示文档详情
+  if (activeDocId && activeDocument) {
+    return (
+      <div
+        className="h-full flex flex-col overflow-hidden"
+        style={{ backgroundColor: '#FFFFFF', minWidth: 0 }}
+      >
+        <DocumentDetail
+          doc={activeDocument}
+          onBack={handleBackToOverview}
+          onSummonMentor={handleSummonMentorForDoc}
+        />
+      </div>
+    )
+  }
+
+  // 情况 2：有 activeDocId 但找不到文档 → 显示错误提示
+  if (activeDocId && !activeDocument) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center" style={{ backgroundColor: '#F9FAFB' }}>
+        <div className="text-center">
+          <p className="text-4xl mb-4">🔍</p>
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">文档未找到</h3>
+          <p className="text-sm text-gray-500 mb-4">无法找到 ID 为 "{activeDocId}" 的文档</p>
+          <button
+            onClick={handleBackToOverview}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-all hover:scale-105"
+            style={{ backgroundColor: '#8B5CF6' }}
+          >
+            返回文档列表
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // 情况 3：没有选中文档 → 显示模块概览列表（默认视图）
   return (
     <div
       className="h-full flex flex-col overflow-hidden"

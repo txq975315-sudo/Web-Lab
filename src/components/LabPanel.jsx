@@ -1,6 +1,8 @@
 import { useLab } from '../context/LabContext'
 import { useState, useRef, useEffect } from 'react'
 import SelectionMenu from './SelectionMenu'
+import { streamChat, chatComplete } from '../utils/aiApi'
+import { LIVE_LAB_PROMPT, ARCHAEOLOGY_PROMPT } from '../config/aiPrompts'
 
 const BACKGROUNDS = [
   '/backgrounds/bg-1.jpg',
@@ -84,40 +86,138 @@ function DragToolbar({ selectedText, position, onClose, messageId }) {
   )
 }
 
-function LiveLab({ messages, setMessages, inputValue, setInputValue, handleTextSelect }) {
-  const { activeProjectId, projectTree } = useLab()
+function LiveLab({ messages, setMessages, inputValue, setInputValue, handleTextSelect, historyMessages, viewingHistorySessionId, setViewingHistorySessionId, activeProjectId, saveMessageToHistory }) {
+  const { projectTree } = useLab()
   const messagesRef = useRef(null)
+  const [isStreaming, setIsStreaming] = useState(false)
   const activeProject = projectTree.find(p => p.id === activeProjectId)
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault()
-    if (inputValue.trim()) {
-      setMessages(prev => [...prev, {
-        id: prev.length + 1,
-        type: 'user',
-        content: inputValue,
-        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-      }])
-      setInputValue('')
+    if (!inputValue.trim() || isStreaming) return
 
-      setTimeout(() => {
-        setMessages(prev => [...prev, {
-          id: prev.length + 1,
-          type: 'assistant',
-          content: '这是一个很好的问题。让我从商业分析的角度来帮你梳理一下思路...',
-          time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-        }])
-      }, 800)
+    const config = localStorage.getItem('kairos-ai-config')
+    if (!config) {
+      alert('请先点击右上角 ⚙️ 设置 API Key')
+      return
     }
+
+    const userMessageContent = inputValue.trim()
+    
+    const userMessage = {
+      id: `msg_${Date.now()}`,
+      type: 'user',
+      content: userMessageContent,
+      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    }
+
+    setMessages(prev => [...prev, userMessage])
+    saveMessageToHistory(activeProjectId, userMessage)
+    setInputValue('')
+    setIsStreaming(true)
+
+    const assistantMessageId = `msg_${Date.now() + 1}`
+    const assistantMessage = {
+      id: assistantMessageId,
+      type: 'assistant',
+      content: '',
+      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      streaming: true
+    }
+    
+    setMessages(prev => [...prev, assistantMessage])
+
+    const chatMessages = messages
+      .filter(m => m.type === 'user' || m.type === 'assistant')
+      .slice(-10)
+      .map(m => ({
+        role: m.type === 'user' ? 'user' : 'assistant',
+        content: m.content
+      }))
+
+    await streamChat(
+      [
+        { role: 'system', content: LIVE_LAB_PROMPT },
+        ...chatMessages,
+        { role: 'user', content: userMessageContent }
+      ],
+      (chunk, fullText) => {
+        setMessages(prev => prev.map(msg => 
+          msg.id === assistantMessageId 
+            ? { ...msg, content: fullText }
+            : msg
+        ))
+      },
+      (fullText) => {
+        setIsStreaming(false)
+        const completedMessage = { ...assistantMessage, content: fullText, streaming: false }
+        
+        const warnings = []
+        
+        const hasSectionHeaders = /###\s*[1234]\./.test(fullText)
+        if (!hasSectionHeaders) {
+          warnings.push('AI 未遵循格式约束（缺少四维模块标题），请重试')
+        }
+        
+        const hasFatalQuestion = /\*\*致命追问：\*\*/.test(fullText)
+        if (!hasFatalQuestion) {
+          warnings.push('AI 未包含致命追问，请重试')
+        }
+        
+        const hasJsonBlock = /```json/.test(fullText)
+        if (!hasJsonBlock) {
+          warnings.push('未提取到结构化数据（JSON）')
+        }
+        
+        if (warnings.length > 0) {
+          completedMessage.formatWarnings = warnings
+          console.warn('格式校验警告:', warnings)
+        }
+        
+        saveMessageToHistory(activeProjectId, completedMessage)
+        
+        try {
+          const jsonMatch = fullText.match(/```json\s*([\s\S]*?)```/)
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[1])
+            console.log('AI 元数据提取成功:', parsed)
+          }
+        } catch (error) {
+          console.log('JSON 解析失败，可能是普通回复')
+        }
+      },
+      (errorMsg) => {
+        setIsStreaming(false)
+        setMessages(prev => prev.map(msg => 
+          msg.id === assistantMessageId 
+            ? { ...msg, content: `❌ 错误：${errorMsg}`, streaming: false }
+            : msg
+        ))
+      }
+    )
   }
+
+  const handleBackToLive = () => {
+    setViewingHistorySessionId(null)
+  }
+
+  const displayMessages = viewingHistorySessionId ? historyMessages : messages
 
   return (
     <>
       {activeProject && (
-        <div className="relative z-10 px-6 pt-2">
+        <div className="relative z-10 px-6 pt-2 flex items-center justify-between">
           <span className="text-[10px] text-white/60">
             正在项目：{activeProject.name}
           </span>
+          {viewingHistorySessionId && (
+            <button
+              onClick={handleBackToLive}
+              className="text-[10px] text-purple-300 hover:text-white transition-colors"
+            >
+              ← 返回实时对话
+            </button>
+          )}
         </div>
       )}
 
@@ -126,71 +226,93 @@ function LiveLab({ messages, setMessages, inputValue, setInputValue, handleTextS
         className="relative flex-1 overflow-auto px-6 pb-4 space-y-4 z-10"
         onMouseUp={handleTextSelect}
       >
-        {messages.map(message => (
-          <div
-            key={message.id}
-            data-message-id={message.id}
-            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} ${message.type === 'system' ? 'justify-center' : ''}`}
-          >
-            <div
-              className={`max-w-[75%] p-4 rounded-2xl ${
-                message.type === 'user'
-                  ? 'text-white rounded-br-md'
-                  : message.type === 'system'
-                  ? 'text-xs rounded-lg'
-                  : 'rounded-bl-md'
-              }`}
-              style={{
-                backgroundColor: message.type === 'user'
-                  ? 'rgba(255,255,255,0.25)'
-                  : message.type === 'system'
-                  ? 'rgba(255,255,255,0.1)'
-                  : 'rgba(255,255,255,0.15)',
-                backdropFilter: 'blur(8px)',
-                border: message.type === 'assistant' ? '1px solid rgba(255,255,255,0.15)' : 'none',
-                color: message.type === 'system' ? 'rgba(255,255,255,0.7)' : 'white'
-              }}
-            >
-              <p className={`text-sm ${message.type === 'system' ? 'text-xs' : ''}`}>
-                {message.content}
-              </p>
-              <span className="text-xs mt-1 block text-right" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                {message.time}
-              </span>
-            </div>
+        {displayMessages.length === 0 ? (
+          <div className="flex justify-center items-center h-full text-white/50 text-sm">
+            {viewingHistorySessionId ? '该会话暂无消息' : '暂无对话记录'}
           </div>
-        ))}
+        ) : (
+          displayMessages.map(message => (
+            <div
+              key={message.id}
+              data-message-id={message.id}
+              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} ${message.type === 'system' ? 'justify-center' : ''}`}
+            >
+              <div
+                className={`max-w-[75%] p-4 rounded-2xl ${
+                  message.type === 'user'
+                    ? 'text-white rounded-br-md'
+                    : message.type === 'system'
+                    ? 'text-xs rounded-lg'
+                    : 'rounded-bl-md'
+                }`}
+                style={{
+                  backgroundColor: message.type === 'user'
+                    ? 'rgba(255,255,255,0.25)'
+                    : message.type === 'system'
+                    ? 'rgba(255,255,255,0.1)'
+                    : 'rgba(255,255,255,0.15)',
+                  backdropFilter: 'blur(8px)',
+                  border: message.type === 'assistant' ? '1px solid rgba(255,255,255,0.15)' : 'none',
+                  color: message.type === 'system' ? 'rgba(255,255,255,0.7)' : 'white'
+                }}
+              >
+                <p className={`text-sm ${message.type === 'system' ? 'text-xs' : ''}`}>
+                  {message.content}
+                </p>
+                {message.formatWarnings && message.formatWarnings.length > 0 && (
+                  <div className="mt-2 p-2 rounded-lg text-xs" style={{
+                    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+                    border: '1px solid rgba(251, 191, 36, 0.3)',
+                    color: '#FCD34D'
+                  }}>
+                    <div className="font-medium mb-1">⚠️ 格式警告：</div>
+                    {message.formatWarnings.map((warning, i) => (
+                      <div key={i} className="ml-2">• {warning}</div>
+                    ))}
+                  </div>
+                )}
+                <span className="text-xs mt-1 block text-right" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  {message.time}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
-      <form onSubmit={handleSend} className="relative px-6 pb-6 z-10">
-        <div className="flex items-center gap-3">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="输入你的想法..."
-            className="flex-1 px-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 transition-all text-white placeholder-white/50"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.15)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: '12px'
-            }}
-          />
-          <button
-            type="submit"
-            className="px-6 py-3 text-sm font-medium rounded-xl transition-all hover:scale-105 active:scale-95"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.25)',
-              backdropFilter: 'blur(8px)',
-              color: 'white',
-              border: '1px solid rgba(255,255,255,0.2)'
-            }}
-          >
-            发送
-          </button>
-        </div>
-      </form>
+      {!viewingHistorySessionId && (
+        <form onSubmit={handleSend} className="relative px-6 pb-6 z-10">
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="输入你的想法..."
+              className="flex-1 px-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 transition-all text-white placeholder-white/50"
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: '12px'
+              }}
+            />
+            <button
+              type="submit"
+              data-send-button
+              disabled={isStreaming}
+              className="px-6 py-3 text-sm font-medium rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.25)',
+                backdropFilter: 'blur(8px)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}
+            >
+              {isStreaming ? '正在输入...' : '发送'}
+            </button>
+          </div>
+        </form>
+      )}
     </>
   )
 }
@@ -202,65 +324,56 @@ function ArchaeologyLab() {
 
   const activeSession = archaeologySessions.find(s => s.id === activeArchaeologyId)
 
-  const handleScan = () => {
+  const handleScan = async () => {
     if (!pasteText.trim()) return
+
+    const config = localStorage.getItem('kairos-ai-config')
+    if (!config) {
+      alert('请先点击右上角设置 API Key')
+      return
+    }
 
     setAnalyzing(true)
 
     const session = createArchaeologySession(pasteText)
 
-    setTimeout(() => {
-      const mockTimeline = [
-        {
-          type: 'hypothesis',
-          dimension: 'product',
-          quote: pasteText.slice(0, 60) + '...',
-          summary: '从对话中提取的初始产品假设，用户表达了对特定功能的需求。'
-        },
-        {
-          type: 'challenge',
-          dimension: 'business',
-          quote: '这里可能存在商业化落地的挑战...',
-          summary: '在商业化层面遭遇挑战，需要重新评估目标市场和定价策略。'
-        },
-        {
-          type: 'revision',
-          dimension: 'product',
-          quote: '经过讨论，我们调整了方案...',
-          summary: '基于挑战反馈，对产品方案进行了认知修正，聚焦核心价值主张。'
-        },
-        {
-          type: 'conclusion',
-          dimension: 'society',
-          quote: '最终我们达成共识...',
-          summary: '收敛结论：产品方向确认，下一步进入详细规格设计阶段。'
-        }
-      ]
+    try {
+      const result = await chatComplete([
+        { role: 'system', content: ARCHAEOLOGY_PROMPT },
+        { role: 'user', content: pasteText }
+      ])
 
-      const mockDecisions = [
-        { text: '采用订阅制定价模型，基础版免费+高级版付费', summary: '定价策略决策' },
-        { text: '优先支持 Android 平台，iOS 延后至 Q3', summary: '平台优先级决策' }
-      ]
-
-      const mockBlindSpots = [
-        { text: '未充分考虑竞品在东南亚市场的先发优势', summary: '竞品分析盲区' },
-        { text: '用户隐私合规（GDPR/CCPA）的具体实施方案尚未明确', summary: '合规盲区' }
-      ]
-
-      const mockActionItems = [
-        { text: '下周完成竞品功能对比矩阵', summary: '竞品调研待办' },
-        { text: '与法务确认数据跨境传输合规要求', summary: '合规确认待办' }
-      ]
+      let parsedData
+      try {
+        parsedData = JSON.parse(result)
+      } catch (parseError) {
+        console.error('JSON 解析失败:', parseError)
+        updateArchaeologySession(session.id, {
+          timeline: [],
+          decisions: [],
+          blindSpots: [],
+          actionItems: [],
+          rawResponse: result,
+          parseError: 'AI 返回格式异常，请手动检查'
+        })
+        setAnalyzing(false)
+        return
+      }
 
       updateArchaeologySession(session.id, {
-        timeline: mockTimeline,
-        decisions: mockDecisions,
-        blindSpots: mockBlindSpots,
-        actionItems: mockActionItems
+        timeline: parsedData.timeline || [],
+        decisions: parsedData.decisions || [],
+        blindSpots: parsedData.blindSpots || [],
+        actionItems: parsedData.actionItems || [],
+        summary: parsedData.summary || null
       })
 
       setAnalyzing(false)
-    }, 2000)
+    } catch (error) {
+      console.error('API 调用失败:', error)
+      setAnalyzing(false)
+      alert(`扫描失败：${error.message}`)
+    }
   }
 
   return (
@@ -360,16 +473,104 @@ function ArchaeologyLab() {
   )
 }
 
+function MemoryCard({ projectId, getMemorySummary }) {
+  const [expanded, setExpanded] = useState(false)
+  const memory = getMemorySummary(projectId)
+
+  if (!memory || memory.totalInteractions === 0) {
+    return null
+  }
+
+  return (
+    <div
+      className="mx-4 mb-2 rounded-xl overflow-hidden"
+      style={{
+        backgroundColor: 'rgba(255,255,255,0.12)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255,255,255,0.15)'
+      }}
+    >
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full px-3 py-2 flex items-center justify-between text-white/80 hover:text-white transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: '14px' }}>🧠</span>
+          <span className="text-[11px] font-medium">
+            记忆 ({memory.insightCount} 洞察)
+          </span>
+        </div>
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          fill="none"
+          style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }}
+        >
+          <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="px-3 pb-3 space-y-2">
+          <div className="text-[10px] text-white/50">
+            共 {memory.totalInteractions} 次交互 · 最后更新: {
+              memory.lastUpdated ? new Date(memory.lastUpdated).toLocaleString('zh-CN', {
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }) : '无'
+            }
+          </div>
+
+          {memory.recentInsight && (
+            <div className="p-2 rounded-lg" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
+              <div className="text-[9px] text-white/40 mb-1">最近洞察</div>
+              <div className="text-[10px] text-white/80 leading-relaxed">
+                {memory.recentInsight.length > 60
+                  ? memory.recentInsight.slice(0, 60) + '...'
+                  : memory.recentInsight
+                }
+              </div>
+            </div>
+          )}
+
+          {memory.recentTopics.length > 0 && (
+            <div>
+              <div className="text-[9px] text-white/40 mb-1">讨论话题</div>
+              <div className="flex flex-wrap gap-1">
+                {memory.recentTopics.map((topic, i) => (
+                  <span
+                    key={i}
+                    className="text-[9px] px-1.5 py-0.5 rounded"
+                    style={{ backgroundColor: 'rgba(139,92,246,0.3)', color: 'rgba(255,255,255,0.7)' }}
+                  >
+                    {topic.length > 15 ? topic.slice(0, 15) + '...' : topic}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function LabPanel() {
-  const { labMode, switchLabMode, projectTree, activeProjectId } = useLab()
+  const { labMode, switchLabMode, projectTree, activeProjectId, allHistoryMessages, viewingHistorySessionId, setViewingHistorySessionId, saveMessageToHistory, startNewSession, expertMode, switchExpertMode, labMessageToSend, autoSendLabMessage, getMemorySummary } = useLab()
   const [inputValue, setInputValue] = useState('')
   const [messages, setMessages] = useState([
     { id: 1, type: 'system', content: '欢迎来到 Thinking Lab，开始你的商业化思维练习吧！', time: '刚刚' },
     { id: 2, type: 'user', content: '什么是商业化思维？', time: '10:30' },
     { id: 3, type: 'assistant', content: '商业化思维是一种将创意和价值转化为可持续商业模式的思考方式。它要求我们从市场、用户、竞争和财务等多个维度系统性地分析商业机会，并将碎片化的洞察转化为可执行的商业策略。', time: '10:31' }
   ])
-  const [dragToolbar, setDragToolbar] = useState(null)
   const [selectionMenu, setSelectionMenu] = useState(null)
+  
+  const historyMessages = viewingHistorySessionId 
+    ? allHistoryMessages[activeProjectId]?.[viewingHistorySessionId] || []
+    : []
 
   const tabs = [
     { id: 'live', label: '实时演练' },
@@ -411,6 +612,20 @@ export default function LabPanel() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [selectionMenu])
+
+  useEffect(() => {
+    if (labMessageToSend) {
+      setInputValue(labMessageToSend)
+      if (autoSendLabMessage) {
+        setTimeout(() => {
+          const sendButton = document.querySelector('[data-send-button]')
+          if (sendButton) {
+            sendButton.click()
+          }
+        }, 100)
+      }
+    }
+  }, [labMessageToSend, autoSendLabMessage])
 
   return (
     <div
@@ -472,6 +687,40 @@ export default function LabPanel() {
         </div>
       </div>
 
+      <div className="relative flex justify-center pb-2 z-10">
+        <div
+          className="flex items-center gap-1 rounded-lg px-2 py-1"
+          style={{
+            backgroundColor: 'rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(8px)'
+          }}
+        >
+          <span className="text-[10px] text-white/60 mr-1">专家模式:</span>
+          <button
+            onClick={() => switchExpertMode('pressure')}
+            className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+              expertMode === 'pressure' 
+                ? 'bg-purple-500 text-white' 
+                : 'text-white/70 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            压力测试
+          </button>
+          <button
+            onClick={() => switchExpertMode('guided')}
+            className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+              expertMode === 'guided' 
+                ? 'bg-emerald-500 text-white' 
+                : 'text-white/70 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            深度引导
+          </button>
+        </div>
+      </div>
+
+      <MemoryCard projectId={activeProjectId} getMemorySummary={getMemorySummary} />
+
       <div className="relative flex-1 flex flex-col overflow-hidden transition-opacity duration-200" style={{ opacity: 1 }}>
         {labMode === 'live' ? (
           <LiveLab
@@ -480,6 +729,11 @@ export default function LabPanel() {
             inputValue={inputValue}
             setInputValue={setInputValue}
             handleTextSelect={handleTextSelect}
+            historyMessages={historyMessages}
+            viewingHistorySessionId={viewingHistorySessionId}
+            setViewingHistorySessionId={setViewingHistorySessionId}
+            activeProjectId={activeProjectId}
+            saveMessageToHistory={saveMessageToHistory}
           />
         ) : (
           <ArchaeologyLab />

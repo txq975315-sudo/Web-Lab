@@ -3,6 +3,7 @@ import { useLocalStorage, STORAGE_KEYS } from '../hooks/useLocalStorage'
 import { syncAllBacklinks, extractReferencedIds } from '../utils/linkParser'
 import { getForcedCategory } from '../config/templates'
 import { autoGenerateOutline } from '../utils/outlineGenerator'
+import { buildAuditPrompt, buildSummonMentorMessage } from '../config/aiPrompts'
 
 const LabContext = createContext(null)
 
@@ -250,6 +251,64 @@ function makeDoc(data) {
   }
   doc.outline = autoGenerateOutline(doc)
   return doc
+}
+
+function parseAIMetadata(content) {
+  try {
+    const lastBraceIndex = content.lastIndexOf('```json')
+    if (lastBraceIndex === -1) return null
+    
+    const jsonStart = content.indexOf('{', lastBraceIndex)
+    const jsonEnd = content.lastIndexOf('}') + 1
+    
+    if (jsonStart === -1 || jsonEnd === -1) return null
+    
+    const jsonString = content.slice(jsonStart, jsonEnd)
+    return JSON.parse(jsonString)
+  } catch {
+    return null
+  }
+}
+
+function extractDecisionsFromMetadata(metadata) {
+  const decisions = []
+  
+  if (metadata?.key_assumptions) {
+    for (const assumption of metadata.key_assumptions) {
+      if (assumption.decision || assumption.confidence) {
+        decisions.push({
+          type: 'assumption',
+          content: assumption.text || assumption,
+          confidence: assumption.confidence,
+          rationale: assumption.rationale
+        })
+      }
+    }
+  }
+  
+  if (metadata?.action_items) {
+    for (const action of metadata.action_items) {
+      decisions.push({
+        type: 'action',
+        content: action.text || action,
+        owner: action.owner,
+        deadline: action.deadline
+      })
+    }
+  }
+  
+  if (metadata?.fatal_risks) {
+    for (const risk of metadata.fatal_risks) {
+      decisions.push({
+        type: 'risk',
+        content: risk.text || risk,
+        impact: risk.impact,
+        mitigation: risk.mitigation
+      })
+    }
+  }
+  
+  return decisions
 }
 
 const DEFAULT_PROJECT_TREE = [
@@ -591,6 +650,21 @@ export function LabProvider({ children }) {
   const [archaeologySessions, setArchaeologySessions] = useLocalStorage('kairos-archaeology-sessions', [])
   const [activeArchaeologyId, setActiveArchaeologyId] = useLocalStorage('kairos-active-archaeology-id', null)
   const [previousProjectId, setPreviousProjectId] = useState(null)
+  const [allHistoryMessages, setAllHistoryMessages] = useLocalStorage('kairos-all-history-messages', {})
+  const [currentSessionId, setCurrentSessionId] = useLocalStorage('kairos-current-session-id', null)
+  const [viewingHistorySessionId, setViewingHistorySessionId] = useState(null)
+  const [expertMode, setExpertMode] = useLocalStorage('kairos-expert-mode', 'pressure')
+  const [documentConflicts, setDocumentConflicts] = useState({})
+  const [labMessageToSend, setLabMessageToSend] = useState(null)
+  const [autoSendLabMessage, setAutoSendLabMessage] = useState(false)
+  const [projectMemories, setProjectMemories] = useLocalStorage('kairos-project-memories', {})
+
+  useEffect(() => {
+    if (!currentSessionId) {
+      const newSessionId = `session_${Date.now()}`
+      setCurrentSessionId(newSessionId)
+    }
+  }, [])
 
   useEffect(() => {
     const migrated = migrateMisplacedDocuments(projectTree)
@@ -598,6 +672,79 @@ export function LabProvider({ children }) {
       setProjectTree(migrated.tree)
     }
   }, [])
+
+  // 数据迁移：为缺少 manifesto 文档的项目自动创建
+  useEffect(() => {
+    if (!projectTree || projectTree.length === 0) return
+
+    let hasChanges = false
+    let updatedTree = [...projectTree]
+
+    updatedTree = updatedTree.map(project => {
+      // 检查项目是否已有 manifesto 文档
+      const hasManifestoDoc = project.children?.some(category =>
+        category.children?.some(doc =>
+          doc.docType === 'manifesto' || doc.typeKey === 'manifesto'
+        )
+      )
+
+      if (!hasManifestoDoc) {
+        console.log(`🔄 项目 "${project.name}" 缺少核心定位文档，正在创建...`)
+
+        const constitutionCategory = project.children?.find(cat =>
+          cat.categoryType === 'constitution' || cat.id.includes('cat-constitution')
+        )
+
+        if (constitutionCategory) {
+          hasChanges = true
+
+          const manifestoDocId = `${project.id}-doc-manifesto`
+          const newManifestoDoc = {
+            id: manifestoDocId,
+            name: '核心定位',
+            type: 'document',
+            docType: 'manifesto',
+            typeKey: 'manifesto',
+            parentId: constitutionCategory.id,
+            fields: project.constitution?.manifesto?.fields || {
+              slogan: '',
+              description: '',
+              targetUser: '',
+              differentiation: '',
+              vibe: '',
+              antiWhat: ''
+            },
+            content: '',
+            version: project.constitution?.manifesto?.version || 1,
+            versionHistory: project.constitution?.manifesto?.versionHistory || [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+
+          return {
+            ...project,
+            children: project.children.map(cat =>
+              cat.id === constitutionCategory.id
+                ? { ...cat, children: [...(cat.children || []), newManifestoDoc] }
+                : cat
+            ),
+            constitution: {
+              ...project.constitution,
+              manifestoDocId: manifestoDocId
+            },
+            updatedAt: new Date().toISOString()
+          }
+        }
+      }
+
+      return project
+    })
+
+    if (hasChanges) {
+      console.log('✅ 数据迁移完成：已为所有项目创建核心定位文档')
+      setProjectTree(updatedTree)
+    }
+  }, [projectTree.length]) // 只在项目数量变化时执行一次
 
   const activeProject = projectTree.find(p => p.id === activeProjectId) || projectTree[0]
 
@@ -629,19 +776,135 @@ export function LabProvider({ children }) {
     })
   }, [setProjectTree])
 
-  const appendContentToDocument = useCallback((docId, content, fieldKey = null, polish = false) => {
+  const updateManifesto = useCallback((projectId, newFields, changeReason = '', metadata = {}) => {
+    console.log('🎯 更新核心定位 (Manifesto)', { projectId, changeReason, metadata })
+
+    setProjectTree(prev => {
+      const project = prev.find(p => p.id === projectId)
+      if (!project) {
+        console.warn('项目未找到:', projectId)
+        return prev
+      }
+
+      const oldFields = project.constitution?.manifesto?.fields || {}
+      
+      // 检测关键字段变化
+      const keyFieldsChanged = {
+        slogan: oldFields.slogan !== newFields.slogan,
+        differentiation: oldFields.differentiation !== newFields.differentiation,
+        antiWhat: oldFields.antiWhat !== newFields.antiWhat
+      }
+
+      const hasSignificantChange = Object.values(keyFieldsChanged).some(v => v)
+
+      // 1. 保存新字段并记录版本历史
+      const newVersion = (project.constitution?.manifesto?.version || 0) + 1
+      const versionRecord = {
+        version: newVersion,
+        timestamp: new Date().toISOString(),
+        fields: { ...newFields },
+        changeReason: changeReason || '手动更新',
+        changedFields: Object.keys(newFields).filter(key => oldFields[key] !== newFields[key])
+      }
+
+      const updatedHistory = [
+        ...(project.constitution?.manifesto?.versionHistory || []),
+        versionRecord
+      ].slice(-20) // 只保留最近20个版本
+
+      let updated = prev.map(p => {
+        if (p.id !== projectId) return p
+
+        return {
+          ...p,
+          constitution: {
+            ...p.constitution,
+            manifesto: {
+              ...(p.constitution?.manifesto || {}),
+              fields: newFields,
+              version: newVersion,
+              versionHistory: updatedHistory,
+              lastUpdated: new Date().toISOString(),
+              ...metadata
+            },
+            corePositioning: newFields.slogan || p.constitution?.corePositioning
+          },
+          updatedAt: new Date().toISOString()
+        }
+      })
+
+      // 2. 如果有关键字段变化，自动触发审计
+      if (hasSignificantChange) {
+        console.log('🔍 检测到关键定位变化，准备触发审计...')
+        
+        // 延迟执行审计，确保状态已更新
+        setTimeout(() => {
+          if (typeof window !== 'undefined' && window.dispatchEvent) {
+            window.dispatchEvent(new CustomEvent('manifesto:changed', {
+              detail: {
+                projectId,
+                oldFields,
+                newFields,
+                changedFields: keyFieldsChanged,
+                changeReason
+              }
+            }))
+          }
+        }, 100)
+      }
+
+      // 3. 同步反链和引用
+      updated = syncAllBacklinks(updated)
+
+      return updated
+    })
+  }, [setProjectTree])
+
+  const appendContentToDocument = useCallback((docId, content, fieldKey = null, polish = false, source = null) => {
     setProjectTree(prev => {
       let updated = updateNodeInTree(prev, docId, node => {
         const result = { ...node }
+        
+        const contentWithSource = source ? {
+          text: content,
+          source: {
+            projectId: source.projectId,
+            sessionId: source.sessionId,
+            messageId: source.messageId,
+            timestamp: source.timestamp
+          }
+        } : content
         
         if (fieldKey && result.fields) {
           const currentValue = result.fields[fieldKey] || ''
           result.fields = {
             ...result.fields,
-            [fieldKey]: currentValue + '\n\n' + content
+            [fieldKey]: typeof currentValue === 'string' 
+              ? { text: currentValue, sources: [] }
+              : currentValue
+          }
+          if (source) {
+            result.fields[fieldKey].sources = [
+              ...(result.fields[fieldKey].sources || []),
+              { text: content, ...source }
+            ]
+          } else {
+            result.fields[fieldKey].text += '\n\n' + content
           }
         } else {
-          result.content = (result.content || '') + '\n\n' + content
+          if (typeof result.content === 'string') {
+            result.content = {
+              text: result.content || '',
+              sources: source ? [{ text: content, ...source }] : []
+            }
+          } else {
+            result.content = result.content || { text: '', sources: [] }
+            if (source) {
+              result.content.sources.push({ text: content, ...source })
+            } else {
+              result.content.text += '\n\n' + content
+            }
+          }
         }
         
         const allText = extractAllTextForReferences(result)
@@ -654,6 +917,482 @@ export function LabProvider({ children }) {
       return updated
     })
   }, [setProjectTree])
+
+  const saveMessageToHistory = useCallback((projectId, message) => {
+    setAllHistoryMessages(prev => {
+      const projectHistory = prev[projectId] || {}
+      const sessionHistory = projectHistory[currentSessionId] || []
+
+      const newSessionHistory = [...sessionHistory, message]
+
+      return {
+        ...prev,
+        [projectId]: {
+          ...projectHistory,
+          [currentSessionId]: newSessionHistory
+        }
+      }
+    })
+
+    if (message.type === 'assistant') {
+      const metadata = parseAIMetadata(message.content)
+      if (metadata) {
+        const decisions = extractDecisionsFromMetadata(metadata)
+        if (decisions.length > 0) {
+          decisions.forEach(decision => {
+            autoCreateDecisionDoc(projectId, decision)
+          })
+        }
+      }
+
+      updateProjectMemory(projectId, message.content)
+    }
+
+    if (message.type === 'user') {
+      updateProjectMemory(projectId, message.content, 'user')
+    }
+  }, [currentSessionId])
+
+  const startNewSession = useCallback(() => {
+    const newSessionId = `session_${Date.now()}`
+    setCurrentSessionId(newSessionId)
+    setViewingHistorySessionId(null)
+  }, [])
+
+  const extractKeyInsights = (text) => {
+    const insights = []
+
+    const insightPatterns = [
+      /(?:关键洞察|核心发现|洞察|insight)[:：]\s*(.+)/gi,
+      /(?:值得注意的是|值得关注|重点是)[:：]\s*(.+)/gi,
+      /(?:用户痛点|用户需求|用户行为)[:：]\s*(.+)/gi,
+      /(?:竞争优势|differentiation|差异化)[:：]\s*(.+)/gi,
+      /(?:风险|risk|威胁)[:：]\s*(.+)/gi,
+      /(?:机会|opportunity|切入点)[:：]\s*(.+)/gi,
+    ]
+
+    for (const pattern of insightPatterns) {
+      let match
+      while ((match = pattern.exec(text)) !== null) {
+        insights.push(match[1].trim())
+      }
+    }
+
+    if (text.length > 20 && insights.length === 0) {
+      const sentences = text.split(/[.。!！?？]/).filter(s => s.trim().length > 10)
+      if (sentences.length > 0) {
+        insights.push(sentences[0].trim())
+      }
+    }
+
+    return insights.slice(0, 3)
+  }
+
+  const updateProjectMemory = useCallback((projectId, content, role = 'assistant') => {
+    const insights = extractKeyInsights(content)
+    const timestamp = new Date().toISOString()
+
+    setProjectMemories(prev => {
+      const projectMemory = prev[projectId] || {
+        lastUpdated: null,
+        totalInteractions: 0,
+        insights: [],
+        discussionTopics: [],
+        userInputs: [],
+        assistantResponses: []
+      }
+
+      const newMemory = {
+        ...projectMemory,
+        lastUpdated: timestamp,
+        totalInteractions: projectMemory.totalInteractions + 1
+      }
+
+      if (role === 'user' && content.trim()) {
+        newMemory.userInputs = [
+          ...projectMemory.userInputs.slice(-19),
+          { content: content.slice(0, 200), timestamp }
+        ]
+        newMemory.discussionTopics = [
+          ...projectMemory.discussionTopics.filter(t => t !== content.slice(0, 50)),
+          content.slice(0, 50)
+        ].slice(-10)
+      }
+
+      if (role === 'assistant' && insights.length > 0) {
+        const existingInsightTexts = projectMemory.insights.map(i => i.text)
+        for (const insight of insights) {
+          if (!existingInsightTexts.includes(insight)) {
+            newMemory.insights = [
+              ...projectMemory.insights,
+              { text: insight, timestamp, source: 'ai' }
+            ].slice(-20)
+          }
+        }
+      }
+
+      if (role === 'assistant' && content.trim()) {
+        newMemory.assistantResponses = [
+          ...projectMemory.assistantResponses.slice(-9),
+          { content: content.slice(0, 150), timestamp }
+        ]
+      }
+
+      return {
+        ...prev,
+        [projectId]: newMemory
+      }
+    })
+  }, [])
+
+  const getProjectMemory = useCallback((projectId) => {
+    return projectMemories[projectId] || null
+  }, [projectMemories])
+
+  const clearProjectMemory = useCallback((projectId) => {
+    setProjectMemories(prev => {
+      const newMemories = { ...prev }
+      delete newMemories[projectId]
+      return newMemories
+    })
+  }, [])
+
+  const getMemorySummary = useCallback((projectId) => {
+    const memory = projectMemories[projectId]
+    if (!memory) return null
+
+    return {
+      totalInteractions: memory.totalInteractions,
+      lastUpdated: memory.lastUpdated,
+      insightCount: memory.insights.length,
+      recentTopics: memory.discussionTopics.slice(-5),
+      recentInsight: memory.insights[memory.insights.length - 1]?.text || null
+    }
+  }, [projectMemories])
+
+  const autoCreateDecisionDoc = useCallback((projectId, decision) => {
+    const newDocId = `doc-${Date.now()}`
+    const typeLabels = {
+      assumption: '假设',
+      action: '行动',
+      risk: '风险'
+    }
+    
+    const newDoc = makeDoc({
+      id: newDocId,
+      name: `${typeLabels[decision.type] || '决策'}: ${decision.content.slice(0, 30)}${decision.content.length > 30 ? '...' : ''}`,
+      docType: 'decision',
+      fields: {
+        decisionContent: decision.content,
+        decisionBasis: decision.rationale || decision.mitigation || '',
+        alternatives: decision.type === 'assumption' ? '待验证' : '',
+        confidence: decision.confidence || '中',
+        decisionDate: new Date().toISOString().split('T')[0]
+      },
+      status: 'exploring'
+    })
+
+    setProjectTree(prev => {
+      return updateNodeInTree(prev, projectId, projectNode => {
+        const decisionCategory = projectNode.children?.find(c => 
+          c.type === 'category' && c.categoryType === 'decision'
+        )
+        
+        if (decisionCategory) {
+          return {
+            ...projectNode,
+            expanded: true,
+            children: projectNode.children.map(c =>
+              c.id === decisionCategory.id
+                ? { ...c, expanded: true, children: [...(c.children || []), newDoc] }
+                : c
+            )
+          }
+        }
+        
+        return projectNode
+      })
+    })
+
+    console.log(`自动创建决策文档: ${newDoc.name}`)
+  }, [])
+
+  const jumpToSource = useCallback((source) => {
+    if (!source) return
+    
+    setActiveProjectId(source.projectId)
+    setLabMode('live')
+    setViewingHistorySessionId(source.sessionId)
+    
+    setTimeout(() => {
+      const messageEl = document.querySelector(`[data-message-id="${source.messageId}"]`)
+      if (messageEl) {
+        messageEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        messageEl.classList.add('highlight-pulse')
+        setTimeout(() => messageEl.classList.remove('highlight-pulse'), 2000)
+      }
+    }, 300)
+  }, [setActiveProjectId, setLabMode])
+
+  const switchExpertMode = useCallback((mode) => {
+    setExpertMode(mode)
+  }, [])
+
+  const getExpertModePrompt = useCallback(() => {
+    if (expertMode === 'guided') {
+      return `
+你是 Kairos 思维实验室的深度引导教练。
+你的任务不是给出答案，而是通过精准的追问，帮助对话者自己发现盲区、理清逻辑、形成洞察。
+
+规则：
+1. 永远不要直接说出结论——用问题引导对方自己抵达
+2. 当对方给出一个主张，追问其前提假设
+3. 当对方回避一个方向，温和地重新打开那个方向
+4. 当对方形成洞察，要求其清晰表述并记录
+5. 每轮结束不追问，而是询问"你现在怎么理解这个问题？"
+
+禁止：直接评价（包括正面评价）、直接建议、直接给出答案
+      `.trim()
+    }
+    
+    return `
+你是 Kairos 专家评审团，由顶级投资人、资深产品经理、行业分析师组成。
+你的任务是对用户的商业想法进行深度压力测试。
+
+规则：
+1. 绕过表面的赞美，直接进行深度压力测试
+2. 从商业漏洞、产品逻辑、社会心理、落地可行性四个维度进行审计
+3. 每一轮回复必须以一个"致命追问"结束
+4. 输出格式：先给出你的分析，然后在末尾用 JSON 格式输出关键信息，包含 action_items、key_assumptions、fatal_risks
+
+输出格式示例：
+你的分析内容...
+
+\`\`\`json
+{
+  "action_items": [{"text": "xxx", "owner": "xxx", "deadline": "xxx"}],
+  "key_assumptions": [{"text": "xxx", "confidence": "高/中/低", "rationale": "xxx"}],
+  "fatal_risks": [{"text": "xxx", "impact": "高/中/低", "mitigation": "xxx"}]
+}
+\`\`\`
+      `.trim()
+  }, [expertMode])
+
+  const auditConstitutionVsPRD = useCallback(async (projectId, prdDocId) => {
+    const project = projectTree.find(p => p.id === projectId)
+    if (!project) return null
+
+    const constitution = project.constitution || {}
+    const constraints = constitution.constraints || []
+    
+    if (constraints.length === 0) {
+      setDocumentConflicts(prev => ({ ...prev, [prdDocId]: { hasConflict: false, conflicts: [], summary: '项目宪法中没有定义硬性约束' } }))
+      return { hasConflict: false, conflicts: [], summary: '项目宪法中没有定义硬性约束' }
+    }
+
+    const prdDoc = findNodeById(projectTree, prdDocId)
+    if (!prdDoc) {
+      setDocumentConflicts(prev => ({ ...prev, [prdDocId]: { hasConflict: false, conflicts: [], summary: '未找到 PRD 文档' } }))
+      return { hasConflict: false, conflicts: [], summary: '未找到 PRD 文档' }
+    }
+
+    const prdContent = prdDoc.content?.text || prdDoc.content || ''
+    const prdFields = prdDoc.fields || {}
+    const prdFullContent = prdContent + '\n\n' + JSON.stringify(prdFields, null, 2)
+
+    const constitutionText = constraints.map((c, i) => `${i + 1}. ${c}`).join('\n')
+    
+    const prompt = buildAuditPrompt(constitutionText, prdFullContent)
+    
+    const mockResult = {
+      hasConflict: false,
+      conflicts: [],
+      summary: '未发现冲突'
+    }
+    
+    if (prdContent.toLowerCase().includes('ios') && constraints.some(c => c.toLowerCase().includes('android'))) {
+      mockResult.hasConflict = true
+      mockResult.conflicts = [{
+        constraintIndex: constraints.findIndex(c => c.toLowerCase().includes('android')),
+        constraintText: constraints.find(c => c.toLowerCase().includes('android')) || '',
+        prdViolation: 'PRD 内容中提到了 iOS 相关功能',
+        severity: 'high'
+      }]
+      mockResult.summary = `发现 ${mockResult.conflicts.length} 处冲突：PRD 中提到的 iOS 功能违反了约束。`
+    }
+
+    setDocumentConflicts(prev => ({ ...prev, [prdDocId]: mockResult }))
+    return mockResult
+  }, [projectTree])
+
+  const getDocumentConflicts = useCallback((docId) => {
+    return documentConflicts[docId] || null
+  }, [documentConflicts])
+
+  const clearDocumentConflicts = useCallback((docId) => {
+    setDocumentConflicts(prev => {
+      const newConflicts = { ...prev }
+      delete newConflicts[docId]
+      return newConflicts
+    })
+  }, [])
+
+  const auditFullProject = useCallback((projectId) => {
+    const project = projectTree.find(p => p.id === projectId)
+    if (!project) return null
+
+    const issues = []
+    let score = 100
+
+    const constitution = project.constitution || {}
+    const constraints = constitution.constraints || []
+    
+    if (constraints.length === 0) {
+      issues.push({ type: 'warning', message: '项目宪法中没有定义硬性约束', severity: 'medium' })
+      score -= 10
+    }
+
+    const prdDocs = collectDocuments([project]).filter(d => d.docType === 'prd')
+    if (prdDocs.length === 0) {
+      issues.push({ type: 'info', message: '尚未创建 PRD 文档', severity: 'low' })
+      score -= 5
+    } else {
+      for (const prd of prdDocs) {
+        const conflicts = documentConflicts[prd.id]
+        if (conflicts?.hasConflict) {
+          issues.push({ 
+            type: 'error', 
+            message: `PRD "${prd.name}" 存在宪法冲突`, 
+            severity: 'high',
+            docId: prd.id,
+            conflicts: conflicts.conflicts
+          })
+          score -= conflicts.conflicts.length * 15
+        }
+      }
+    }
+
+    const decisionDocs = collectDocuments([project]).filter(d => d.docType === 'decision')
+    const incompleteDecisions = decisionDocs.filter(d => !d.fields?.decisionBasis || !d.fields?.decisionContent)
+    if (incompleteDecisions.length > 0) {
+      issues.push({ 
+        type: 'warning', 
+        message: `${incompleteDecisions.length} 个决策文档内容不完整`, 
+        severity: 'medium' 
+      })
+      score -= incompleteDecisions.length * 5
+    }
+
+    const personaDocs = collectDocuments([project]).filter(d => d.docType === 'persona')
+    if (personaDocs.length === 0) {
+      issues.push({ type: 'info', message: '尚未创建用户画像文档', severity: 'low' })
+      score -= 5
+    }
+
+    return {
+      score: Math.max(0, score),
+      issues,
+      summary: {
+        totalDocs: collectDocuments([project]).length,
+        decisionCount: decisionDocs.length,
+        prdCount: prdDocs.length,
+        personaCount: personaDocs.length
+      }
+    }
+  }, [projectTree, documentConflicts])
+
+  const summonMentor = useCallback((docId) => {
+    const doc = findNodeById(projectTree, docId)
+    if (!doc) return
+
+    const project = projectTree.find(p => p.id === activeProjectId)
+    if (!project) return
+
+    const constitution = project.constitution || {}
+    const constraints = (constitution.constraints || []).join('\n')
+    const decisions = (constitution.decisions || []).map(d => `- ${d}`).join('\n')
+    const vetoes = (constitution.vetoes || []).map(v => `- ${v}`).join('\n')
+
+    let constitutionText = ''
+    if (constraints) constitutionText += `【硬性约束】\n${constraints}\n`
+    if (decisions) constitutionText += `【已做决策】\n${decisions}\n`
+    if (vetoes) constitutionText += `【否决墓地】\n${vetoes}\n`
+
+    const memory = projectMemories[activeProjectId]
+    let memoryContext = ''
+    if (memory && memory.insights.length > 0) {
+      memoryContext = `\n\n【历史讨论洞察】\n`
+      const recentInsights = memory.insights.slice(-5)
+      recentInsights.forEach((insight, i) => {
+        memoryContext += `${i + 1}. ${insight.text}\n`
+      })
+    }
+
+    const moduleName = doc.name
+    let docContent = ''
+
+    if (doc.content?.text) {
+      docContent = doc.content.text
+    } else if (doc.content) {
+      docContent = doc.content
+    } else if (doc.fields) {
+      docContent = Object.entries(doc.fields)
+        .map(([key, value]) => `${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`)
+        .join('\n')
+    }
+
+    if (!docContent.trim()) {
+      docContent = '(文档暂无内容)'
+    }
+
+    const message = buildSummonMentorMessage(moduleName, docContent, {
+      constitution: constitutionText,
+      memory: memoryContext
+    })
+
+    setLabMessageToSend(message)
+    setAutoSendLabMessage(true)
+    setExpertMode('guided')
+
+    setTimeout(() => {
+      setLabMessageToSend(null)
+      setAutoSendLabMessage(false)
+    }, 5000)
+  }, [projectTree, activeProjectId, projectMemories])
+
+  const addDocumentToCategory = useCallback((projectId, categoryType, docData) => {
+    const newDocId = `doc-${Date.now()}`
+    const newDoc = makeDoc({
+      id: newDocId,
+      ...docData
+    })
+
+    let parentCategoryId = null
+    setProjectTree(prev => {
+      return updateNodeInTree(prev, projectId, projectNode => {
+        const categoryNode = projectNode.children?.find(c => 
+          c.type === 'category' && c.categoryType === categoryType
+        )
+        
+        if (categoryNode) {
+          parentCategoryId = categoryNode.id
+          return {
+            ...projectNode,
+            expanded: true,
+            children: projectNode.children.map(c =>
+              c.id === categoryNode.id
+                ? { ...c, expanded: true, children: [...(c.children || []), newDoc] }
+                : c
+            )
+          }
+        }
+        
+        return projectNode
+      })
+    })
+
+    return { newDocId, parentCategoryId, wasProjectSwitch: false }
+  }, [])
 
   const addDocument = useCallback((parentId, doc) => {
     const validatedParentId = validateMountPoint(doc.docType, parentId, projectTree)
@@ -821,6 +1560,115 @@ export function LabProvider({ children }) {
     }
   }, [projectTree])
 
+  const createProject = useCallback((name, constitutionData = null) => {
+    const projectId = `proj-${Date.now()}`
+
+    const defaultConstitution = constitutionData || {
+      corePositioning: '未设置核心定位',
+      constraints: [],
+      manifesto: {
+        fields: {
+          slogan: '',
+          description: '',
+          targetUser: '',
+          differentiation: '',
+          vibe: '',
+          antiWhat: ''
+        },
+        version: 1,
+        versionHistory: []
+      },
+      manifestoDocId: null // 将在创建文档后填充
+    }
+
+    // 自动生成核心定位文档
+    const manifestoDocId = `${projectId}-doc-manifesto`
+
+    // 填充 manifestoDocId 到 constitution
+    defaultConstitution.manifestoDocId = manifestoDocId
+
+    const newProject = {
+      id: projectId,
+      name: name || '新项目',
+      type: 'project',
+      expanded: true,
+      constitution: defaultConstitution,
+      children: [
+        {
+          id: `${projectId}-cat-constitution`,
+          name: '01 项目宪法',
+          type: 'category',
+          categoryType: 'constitution',
+          expanded: true,
+          children: [
+            {
+              id: manifestoDocId,
+              name: '核心定位',
+              type: 'document',
+              docType: 'manifesto',
+              typeKey: 'manifesto',
+              parentId: `${projectId}-cat-constitution`,
+              fields: defaultConstitution.manifesto?.fields || {},
+              content: '',
+              version: 1,
+              versionHistory: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            }
+          ]
+        },
+        {
+          id: `${projectId}-cat-market`,
+          name: '02 市场与用户洞察',
+          type: 'category',
+          categoryType: 'market-insight',
+          expanded: false,
+          children: []
+        },
+        {
+          id: `${projectId}-cat-product`,
+          name: '03 产品与商业策略',
+          type: 'category',
+          categoryType: 'product-strategy',
+          expanded: false,
+          children: []
+        },
+        {
+          id: `${projectId}-cat-decision-chain`,
+          name: '04 决策链图谱',
+          type: 'category',
+          categoryType: 'decision-chain',
+          expanded: false,
+          isSpecial: true,
+          children: []
+        },
+        {
+          id: `${projectId}-cat-audit`,
+          name: '05 反脆弱审计',
+          type: 'category',
+          categoryType: 'anti-fragile-audit',
+          expanded: false,
+          children: []
+        },
+        {
+          id: `${projectId}-cat-execution`,
+          name: '06 执行路线图',
+          type: 'category',
+          categoryType: 'execution-roadmap',
+          expanded: false,
+          children: []
+        }
+      ]
+    }
+
+    setProjectTree(prev => [...prev, newProject])
+    setActiveProjectId(projectId)
+
+    console.log(`✅ 项目已创建: ${name || '新项目'}`, { projectId, manifestoDocId })
+
+    return projectId
+  }, [setProjectTree, setActiveProjectId])
+
   const switchLabMode = useCallback((mode) => {
     if (mode === 'archaeology' && labMode === 'live') {
       setPreviousProjectId(activeProjectId)
@@ -942,6 +1790,7 @@ export function LabProvider({ children }) {
     setStandardizingIds,
     toggleTreeNode,
     updateDocument,
+    updateManifesto,
     addDocument,
     deleteDocument,
     dropToCreateDocument,
@@ -952,6 +1801,7 @@ export function LabProvider({ children }) {
     switchProject,
     toggleDecisionStatus,
     getProjectHealth,
+    createProject,
     labMode,
     switchLabMode,
     archaeologySessions,
@@ -969,6 +1819,29 @@ export function LabProvider({ children }) {
     setHighlightedDocId,
     archivedMessageId,
     recentDocuments,
+    allHistoryMessages,
+    currentSessionId,
+    viewingHistorySessionId,
+    setViewingHistorySessionId,
+    saveMessageToHistory,
+    startNewSession,
+    jumpToSource,
+    addDocumentToCategory,
+    expertMode,
+    switchExpertMode,
+    getExpertModePrompt,
+    auditConstitutionVsPRD,
+    getDocumentConflicts,
+    clearDocumentConflicts,
+    auditFullProject,
+    documentConflicts,
+    summonMentor,
+    labMessageToSend,
+    autoSendLabMessage,
+    projectMemories,
+    getProjectMemory,
+    clearProjectMemory,
+    getMemorySummary,
     findNodeById: (id) => findNodeById(projectTree, id)
   }
 

@@ -106,17 +106,41 @@ function recommendDocument(text, documents) {
   return bestMatch
 }
 
+function classifyByKeywords(text) {
+  const keywordRules = [
+    { keywords: ['必须', '只能', '绝不', '禁止', '不得'], category: 'decision', label: '硬性约束' },
+    { keywords: ['决定', '拍板', '定了', '确定', '决议'], category: 'decision', label: '已做决策' },
+    { keywords: ['放弃', '砍掉', '排除', '否决', '取消'], category: 'decision', label: '否决墓地' },
+    { keywords: ['灵感', '也许', '可能', '想法', '创意'], category: 'insight', label: 'Insight' },
+    { keywords: ['功能', '规格', '技术', '设计', 'PRD'], category: 'archive', label: 'Archive' },
+    { keywords: ['用户', '客户', '人群', '画像'], category: 'insight', label: '用户洞察' }
+  ]
+  
+  for (const rule of keywordRules) {
+    for (const keyword of rule.keywords) {
+      if (text.includes(keyword)) {
+        return rule
+      }
+    }
+  }
+  
+  return null
+}
+
 export default function SelectionMenu({ text, position, onClose }) {
-  const { projectTree, activeProjectId, setActiveDocId, appendContentToDocument, highlightNodeAfterRender } = useLab()
+  const { projectTree, activeProjectId, setActiveDocId, appendContentToDocument, highlightNodeAfterRender, currentSessionId, addDocumentToCategory } = useLab()
   const [selectedProject, setSelectedProject] = useState(null)
   const [selectedDoc, setSelectedDoc] = useState(null)
   const [showFieldSelector, setShowFieldSelector] = useState(false)
   const [targetDoc, setTargetDoc] = useState(null)
   const [usePolish, setUsePolish] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState(null)
+  const [showQuickArchive, setShowQuickArchive] = useState(false)
   const menuRef = useRef(null)
   
   const documents = findAllDocuments(projectTree)
   const activeProject = projectTree.find(p => p.id === activeProjectId)
+  const autoClassification = classifyByKeywords(text)
   
   useEffect(() => {
     const recommended = recommendDocument(text, documents)
@@ -130,6 +154,10 @@ export default function SelectionMenu({ text, position, onClose }) {
       }
     } else if (activeProject) {
       setSelectedProject(activeProject)
+    }
+    
+    if (autoClassification) {
+      setSelectedCategory(autoClassification.category)
     }
     
     const handleClickOutside = (e) => {
@@ -163,11 +191,39 @@ export default function SelectionMenu({ text, position, onClose }) {
   }
   
   const performArchive = async (docId, fieldKey) => {
-    appendContentToDocument(docId, text, fieldKey, usePolish)
+    const source = {
+      projectId: activeProjectId,
+      sessionId: currentSessionId,
+      messageId: `msg_${Date.now()}`,
+      timestamp: new Date().toLocaleString('zh-CN')
+    }
+    
+    appendContentToDocument(docId, text, fieldKey, usePolish, source)
     
     highlightNodeAfterRender(docId, () => {
       setActiveDocId(docId)
     })
+    
+    onClose()
+  }
+  
+  const handleQuickArchive = async () => {
+    if (!selectedProject || !selectedCategory) return
+    
+    const newDoc = {
+      name: text.slice(0, 30) + (text.length > 30 ? '...' : ''),
+      content: text,
+      docType: selectedCategory === 'decision' ? 'decision' : selectedCategory === 'insight' ? 'insight' : 'archive',
+      fields: {}
+    }
+    
+    const result = await addDocumentToCategory(activeProjectId, selectedCategory, newDoc)
+    
+    if (result.newDocId) {
+      highlightNodeAfterRender(result.newDocId, () => {
+        setActiveDocId(result.newDocId)
+      })
+    }
     
     onClose()
   }
@@ -265,6 +321,53 @@ export default function SelectionMenu({ text, position, onClose }) {
               智能润色后归档
             </span>
           </label>
+          
+          {autoClassification && (
+            <div className="text-xs text-green-600 bg-green-50 px-2 py-1.5 rounded-lg flex items-center gap-1">
+              <Sparkles className="text-green-500" />
+              自动识别: {autoClassification.label}
+            </div>
+          )}
+          
+          <button
+            onClick={() => setShowQuickArchive(!showQuickArchive)}
+            className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 rounded-lg transition-colors flex items-center justify-between"
+          >
+            <span>快速归档到分类</span>
+            <ChevronDown className={`transition-transform ${showQuickArchive ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {showQuickArchive && (
+            <div className="space-y-1.5 pl-2">
+              <div className="relative">
+                <select
+                  value={selectedCategory || ''}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs bg-gray-50 rounded-lg border-none outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer appearance-none"
+                >
+                  <option value="">选择分类</option>
+                  <option value="decision">Decision (决策)</option>
+                  <option value="insight">Insight (洞察)</option>
+                  <option value="archive">Archive (归档)</option>
+                </select>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                  <ChevronDown />
+                </div>
+              </div>
+              <button
+                onClick={handleQuickArchive}
+                disabled={!selectedCategory || !selectedProject}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: (selectedCategory && selectedProject) ? '#10B981' : '#E5E7EB',
+                  color: (selectedCategory && selectedProject) ? 'white' : '#9CA3AF'
+                }}
+              >
+                <ArchiveIcon />
+                创建新文档
+              </button>
+            </div>
+          )}
           
           <button
             onClick={handleArchive}

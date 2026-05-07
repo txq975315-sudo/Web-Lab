@@ -1,5 +1,6 @@
 export const TEMPLATE_TYPES = {
   blank: { id: 'blank', label: '空白文档', icon: '📄', category: '通用', forcedCategory: null },
+  manifesto: { id: 'manifesto', label: '核心定位', icon: '🎯', category: '宪法', forcedCategory: 'cat-constitution' },
   persona: { id: 'persona', label: '用户画像', icon: '👤', category: 'Insight', forcedCategory: 'cat-insight' },
   canvas: { id: 'canvas', label: '商业画布', icon: '🧩', category: 'Insight', forcedCategory: 'cat-insight' },
   prd: { id: 'prd', label: 'PRD 规格', icon: '📋', category: 'Archive', forcedCategory: 'cat-archive' },
@@ -12,6 +13,15 @@ export function getForcedCategory(templateType) {
 
 export const TEMPLATE_FIELDS = {
   blank: [],
+
+  manifesto: [
+    { key: 'slogan', label: '一句话宣言', type: 'text', maxLength: 30, required: true, placeholder: '用一句话概括你的产品核心定位（最多30字）' },
+    { key: 'description', label: '完整定位描述', type: 'textarea', maxLength: 200, placeholder: '详细描述产品的定位、愿景和使命...' },
+    { key: 'targetUser', label: '目标用户', type: 'text', placeholder: '描述目标用户群体特征...' },
+    { key: 'differentiation', label: '差异化价值', type: 'textarea', placeholder: '与竞品相比，你的独特价值是什么？' },
+    { key: 'vibe', label: '产品情绪', type: 'text', placeholder: '如：建筑感、秩序、反焦虑、极简主义...' },
+    { key: 'antiWhat', label: '明确反对', type: 'textarea', placeholder: '你明确反对什么？如：反对信息过载、反对社交压力...' }
+  ],
 
   persona: [
     { key: 'valueProposition', label: '价值主张', type: 'textarea', placeholder: '描述你的产品/服务为用户创造的核心价值...' },

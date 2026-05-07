@@ -1,4 +1,5 @@
 import { getTemplateFields, getTemplateLabel, getTemplateIcon } from '../config/templates'
+import { useLab } from '../context/LabContext'
 
 function PersonaRenderer({ fields, docId }) {
   const items = [
@@ -175,12 +176,32 @@ function slugify(text) {
     .replace(/^-|-$/g, '')
 }
 
-function BlankRenderer({ content, docId }) {
-  if (!content) {
+function SourceAnchor({ source, jumpToSource }) {
+  if (!source) return null
+  
+  return (
+    <button
+      onClick={() => jumpToSource(source)}
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-purple-500 hover:text-purple-600 hover:bg-purple-50 transition-colors ml-1"
+      title={`来源: ${source.timestamp}`}
+    >
+      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 10v6M18 12l-5-5-5 5M9 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2" />
+      </svg>
+      来源
+    </button>
+  )
+}
+
+function BlankRenderer({ content, docId, jumpToSource }) {
+  const textContent = typeof content === 'object' ? content.text : content
+  const sources = typeof content === 'object' && content.sources ? content.sources : []
+  
+  if (!textContent && sources.length === 0) {
     return <p className="text-sm text-gray-300">暂无内容</p>
   }
 
-  const lines = content.split('\n')
+  const lines = (textContent || '').split('\n')
   return (
     <div>
       {lines.map((line, i) => {
@@ -220,16 +241,25 @@ function BlankRenderer({ content, docId }) {
           </p>
         )
       })}
+      
+      {sources.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-1">
+          {sources.map((src, i) => (
+            <SourceAnchor key={i} source={src} jumpToSource={jumpToSource} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 export default function DocumentRenderer({ doc }) {
+  const { jumpToSource } = useLab()
   const templateType = doc.docType || doc.typeKey || 'blank'
   const docId = doc.id
 
   if (templateType === 'blank' || !templateType || templateType === 'document') {
-    return <BlankRenderer content={doc.content} docId={docId} />
+    return <BlankRenderer content={doc.content} docId={docId} jumpToSource={jumpToSource} />
   }
 
   const fields = doc.fields || {}
@@ -244,6 +274,6 @@ export default function DocumentRenderer({ doc }) {
     case 'decision':
       return <DecisionRenderer fields={fields} docId={docId} />
     default:
-      return <BlankRenderer content={doc.content} docId={docId} />
+      return <BlankRenderer content={doc.content} docId={docId} jumpToSource={jumpToSource} />
   }
 }
