@@ -1,420 +1,76 @@
 import { useLab } from '../context/LabContext'
-import { useState, useEffect, useRef } from 'react'
-import { renderContentWithLinks, insertWikiLink, collectAllDocNames, buildDocMap } from '../utils/linkParser'
-import { TEMPLATE_TYPES, getTemplateLabel, getTemplateIcon, createDefaultFields, getForcedCategory } from '../config/templates'
+import { useState, useEffect } from 'react'
+import { buildDocMap } from '../utils/linkParser'
+import { TEMPLATE_TYPES } from '../config/templates'
 import DocumentForm from './DocumentForm'
 import DocumentRenderer from './DocumentRenderer'
-import DocumentDetail from './DocumentDetail'
 
-function Spinner() {
+function EmptyState({ projectName }) {
   return (
-    <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="10" stroke="rgba(107, 114, 128, 0.3)" strokeWidth="3" />
-      <path d="M12 2a10 10 0 0 1 10 10" stroke="#6B7280" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function EmptyState({ onCreateNew }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-20">
-      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="mb-4">
-        <rect x="6" y="14" width="36" height="28" rx="3" stroke="#D1D5DB" strokeWidth="1.5" />
-        <path d="M6 22L24 32L42 22" stroke="#D1D5DB" strokeWidth="1.5" />
-        <path d="M18 14V8C18 7.44772 18.4477 7 19 7H29C29.5523 7 30 7.44772 30 8V14" stroke="#D1D5DB" strokeWidth="1.5" />
-        <line x1="24" y1="26" x2="24" y2="34" stroke="#D1D5DB" strokeWidth="1.5" />
+    <div className="flex flex-col items-center justify-center h-full">
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none" className="mb-6">
+        <rect x="8" y="12" width="48" height="40" rx="4" stroke="#D1D5DB" strokeWidth="2" />
+        <path d="M8 28L32 44L56 28" stroke="#D1D5DB" strokeWidth="2" />
+        <path d="M24 12V4C24 2.89543 24.8954 2 26 2H38C39.1046 2 40 2.89543 40 4V12" stroke="#D1D5DB" strokeWidth="2" />
+        <line x1="32" y1="32" x2="32" y2="44" stroke="#D1D5DB" strokeWidth="2" />
       </svg>
-      <p className="text-sm text-gray-400">暂无文档</p>
-      <p className="text-xs mt-1 text-gray-300">在左侧导航中选择或创建文档</p>
-      {onCreateNew && (
-        <button
-          onClick={onCreateNew}
-          className="mt-4 text-xs px-4 py-2 rounded-lg font-medium text-white transition-all hover:scale-105 active:scale-95"
-          style={{ backgroundColor: '#8B5CF6' }}
-        >
-          + 新建文档
-        </button>
-      )}
+      <h2 className="text-lg font-semibold text-gray-800 mb-2">欢迎来到 {projectName}</h2>
+      <p className="text-sm text-gray-500 mb-4 text-center max-w-[280px]">从左侧新建文档开始，记录你的思考和决策</p>
     </div>
   )
 }
 
-function LinkSuggestPopover({ show, position, suggestions, onSelect, highlightedIndex }) {
-  if (!show || suggestions.length === 0) return null
-
+function DocumentConflictWarning({ conflicts, onStartPressureTest }) {
   return (
-    <div
-      className="fixed z-50 rounded-lg shadow-lg py-1 overflow-hidden"
+    <div 
+      className="mb-4 p-4 rounded-xl"
       style={{
-        left: position.x,
-        top: position.y,
-        backgroundColor: '#FFFFFF',
-        border: '1px solid #E5E7EB',
-        minWidth: '200px',
-        maxHeight: '200px',
-        overflowY: 'auto'
+        backgroundColor: '#FFFBEB',
+        border: '1px solid #FEF3C7'
       }}
     >
-      {suggestions.map((doc, idx) => (
-        <div
-          key={doc.id}
-          onClick={() => onSelect(doc)}
-          className="px-3 py-1.5 text-xs cursor-pointer flex items-center gap-2"
-          style={{
-            backgroundColor: idx === highlightedIndex ? '#F3F4F6' : 'transparent'
-          }}
-          onMouseEnter={(e) => {
-            if (idx !== highlightedIndex) e.currentTarget.style.backgroundColor = '#F9FAFB'
-          }}
-          onMouseLeave={(e) => {
-            if (idx !== highlightedIndex) e.currentTarget.style.backgroundColor = 'transparent'
-          }}
-        >
-          <span className="text-gray-400 flex-shrink-0">📄</span>
-          <span className="text-gray-700 truncate">{doc.name}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function WikiLink({ title, id, exists, onLinkClick }) {
-  const handleClick = (e) => {
-    e.preventDefault()
-    if (exists && id && onLinkClick) {
-      onLinkClick(id)
-    } else if (!exists) {
-      const create = window.confirm(`文档「${title}」不存在，是否创建？`)
-      if (create && onLinkClick) {
-        onLinkClick(null, title)
-      }
-    }
-  }
-
-  return (
-    <span
-      onClick={handleClick}
-      className="cursor-pointer underline underline-offset-2"
-      style={{
-        color: exists ? '#3B82F6' : '#EF4444',
-        textDecorationColor: exists ? 'rgba(59, 130, 246, 0.4)' : 'rgba(239, 68, 68, 0.4)'
-      }}
-      title={exists ? `跳转到「${title}」` : `「${title}」不存在，点击创建`}
-    >
-      {title}
-    </span>
-  )
-}
-
-function RelatedDocuments({ doc, allDocsMap, onLinkClick }) {
-  const [expanded, setExpanded] = useState(false)
-  const hasBacklinks = doc.backlinks && doc.backlinks.length > 0
-  const hasReferences = doc.references && doc.references.length > 0
-
-  if (!hasBacklinks && !hasReferences) return null
-
-  return (
-    <div className="mt-4 pt-3 border-t border-gray-100">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-      >
+      <div className="flex items-start gap-3">
         <svg
-          width="10" height="10" viewBox="0 0 10 10" fill="none"
-          style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          className="flex-shrink-0 mt-0.5"
         >
-          <path d="M3.5 2L6.5 5L3.5 8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M8 2L14 12H2L8 2Z"
+            stroke="#F59E0B"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path d="M8 5V8" stroke="#F59E0B" strokeWidth="1.2" strokeLinecap="round" />
+          <circle cx="8" cy="11" r="1" fill="#F59E0B" />
         </svg>
-        关联文档
-        <span className="text-gray-300">
-          ({[...(doc.backlinks || []), ...(doc.references || [])].length})
-        </span>
-      </button>
-
-      {expanded && (
-        <div className="mt-2 grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-[10px] text-gray-400 mb-1.5">← 被引用</p>
-            {hasBacklinks ? (
-              <div className="space-y-1">
-                {doc.backlinks.map(blId => {
-                  const blDoc = allDocsMap[blId]
-                  return (
-                    <div
-                      key={blId}
-                      onClick={() => blDoc && onLinkClick && onLinkClick(blId)}
-                      className="text-xs text-blue-600 cursor-pointer hover:underline truncate"
-                    >
-                      {blDoc ? blDoc.name : blId}
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <p className="text-xs text-gray-300">暂无</p>
-            )}
-          </div>
-          <div>
-            <p className="text-[10px] text-gray-400 mb-1.5">→ 引用</p>
-            {hasReferences ? (
-              <div className="space-y-1">
-                {doc.references.map(refId => {
-                  const refDoc = allDocsMap[refId]
-                  return (
-                    <div
-                      key={refId}
-                      onClick={() => refDoc && onLinkClick && onLinkClick(refId)}
-                      className="text-xs text-blue-600 cursor-pointer hover:underline truncate"
-                    >
-                      {refDoc ? refDoc.name : refId}
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <p className="text-xs text-gray-300">暂无</p>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function renderContentWithAnchorsAndLinks(content, outline, allDocsMap, onLinkClick) {
-  if (!content) return null
-
-  const linkParts = renderContentWithLinks(content, allDocsMap, onLinkClick)
-  if (!linkParts || linkParts.length === 0) {
-    return <div className="text-sm leading-relaxed text-gray-600 whitespace-pre-line">{content}</div>
-  }
-
-  const headingMap = {}
-  if (outline) {
-    for (const h of outline) {
-      headingMap[h.text] = h.id
-    }
-  }
-
-  const fullText = linkParts.map(p => p.type === 'text' ? p.value : p.raw).join('')
-  const lines = fullText.split('\n')
-  const lineElements = []
-  let i = 0
-
-  while (i < lines.length) {
-    const line = lines[i]
-
-    const h2Match = line.match(/^##\s+(.+)/)
-    if (h2Match) {
-      const text = h2Match[1].trim()
-      const id = headingMap[text]
-      lineElements.push(
-        <h3
-          key={`h2-${i}`}
-          id={id ? `heading-${id}` : undefined}
-          className="text-sm font-semibold text-gray-800 mt-6 mb-2 pb-1 border-b border-gray-100 scroll-mt-4"
-        >
-          {text}
-        </h3>
-      )
-      i++
-      continue
-    }
-
-    const h3Match = line.match(/^###\s+(.+)/)
-    if (h3Match) {
-      const text = h3Match[1].trim()
-      const id = headingMap[text]
-      lineElements.push(
-        <h4
-          key={`h3-${i}`}
-          id={id ? `heading-${id}` : undefined}
-          className="text-xs font-semibold text-gray-700 mt-4 mb-1 scroll-mt-4"
-        >
-          {text}
-        </h4>
-      )
-      i++
-      continue
-    }
-
-    if (line.trim() === '') {
-      lineElements.push(<div key={`br-${i}`} className="h-2" />)
-      i++
-      continue
-    }
-
-    if (line.startsWith('- ')) {
-      lineElements.push(
-        <li key={`li-${i}`} className="text-sm text-gray-600 ml-4 leading-relaxed">
-          {line.replace(/^-\s*/, '')}
-        </li>
-      )
-      i++
-      continue
-    }
-
-    if (line.startsWith('- [ ]')) {
-      lineElements.push(
-        <li key={`li-${i}`} className="text-sm text-gray-500 ml-4 leading-relaxed flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded border border-gray-300 flex-shrink-0" />
-          {line.replace(/^-\s*\[ \]\s*/, '')}
-        </li>
-      )
-      i++
-      continue
-    }
-
-    lineElements.push(
-      <p key={`p-${i}`} className="text-sm leading-relaxed text-gray-600">
-        {line}
-      </p>
-    )
-    i++
-  }
-
-  return <div>{lineElements}</div>
-}
-
-function TemplateSelector({ onSelect, onClose, activeProject }) {
-  const templates = Object.values(TEMPLATE_TYPES)
-  const [selectedTemplate, setSelectedTemplate] = useState(null)
-  const [selectedCategory, setSelectedCategory] = useState(null)
-  
-  const categories = activeProject?.children?.filter(c => c.type === 'category') || []
-  
-  const forcedCategory = selectedTemplate ? getForcedCategory(selectedTemplate) : null
-  
-  const categoryLabels = {
-    'cat-insight': 'Insight',
-    'cat-archive': 'Archive',
-    'cat-decision': 'Decision'
-  }
-
-  const handleSelect = () => {
-    const targetCategory = forcedCategory || selectedCategory
-    onSelect(selectedTemplate, targetCategory)
-  }
-
-  if (!selectedTemplate) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }} onClick={onClose}>
-        <div
-          className="rounded-2xl p-6 w-[380px] max-h-[500px] overflow-auto"
-          style={{ backgroundColor: '#FFFFFF', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <h3 className="text-sm font-semibold text-gray-800 mb-1">选择文档模板</h3>
-          <p className="text-xs text-gray-400 mb-4">选择模板后将使用结构化表单编辑</p>
-
-          <div className="space-y-2">
-            {templates.map(tpl => (
-              <button
-                key={tpl.id}
-                onClick={() => setSelectedTemplate(tpl.id)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-95"
-                style={{
-                  backgroundColor: '#FAFAFA',
-                  border: '1px solid #F3F4F6'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F5F3FF'; e.currentTarget.style.borderColor = '#DDD6FE' }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FAFAFA'; e.currentTarget.style.borderColor = '#F3F4F6' }}
-              >
-                <span className="text-lg flex-shrink-0">{tpl.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-700">{tpl.label}</p>
-                  <p className="text-[10px] text-gray-400">{tpl.category}</p>
-                </div>
-                {tpl.id !== 'blank' && (
-                  <span className="text-[10px] text-purple-400 flex-shrink-0">结构化</span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={onClose}
-            className="w-full mt-4 text-xs py-2 rounded-lg font-medium text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
-          >
-            取消
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }} onClick={onClose}>
-      <div
-        className="rounded-2xl p-6 w-[380px]"
-        style={{ backgroundColor: '#FFFFFF', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-2 mb-2">
-          <button
-            onClick={() => setSelectedTemplate(null)}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M12 4L4 12M4 4l8 8" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </button>
-          <h3 className="text-sm font-semibold text-gray-800">选择分类</h3>
-        </div>
-        
-        <div className="flex items-center gap-3 mb-4 p-3 rounded-xl" style={{ backgroundColor: '#FAFAFA', border: '1px solid #F3F4F6' }}>
-          <span className="text-xl">{getTemplateIcon(selectedTemplate)}</span>
-          <span className="text-sm font-medium text-gray-800">{getTemplateLabel(selectedTemplate)}</span>
-        </div>
-
-        {forcedCategory ? (
-          <div className="mb-4 p-3 rounded-xl" style={{ backgroundColor: '#FEF3C7', border: '1px solid #FCD34D' }}>
-            <p className="text-xs text-gray-700">
-              <span className="font-medium">该模板将自动归档到 </span>
-              <span className="font-semibold">{categoryLabels[forcedCategory] || forcedCategory}</span>
-            </p>
-          </div>
-        ) : (
-          <>
-            <p className="text-xs text-gray-400 mb-3">选择归档位置</p>
-            <div className="space-y-2 mb-4">
-              {categories.map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all"
-                  style={{
-                    backgroundColor: selectedCategory === cat.id ? '#F5F3FF' : '#FAFAFA',
-                    border: selectedCategory === cat.id ? '1px solid #DDD6FE' : '1px solid #F3F4F6'
-                  }}
+        <div className="flex-1">
+          <h4 className="text-sm font-medium text-amber-900">宪法冲突检测</h4>
+          <p className="text-xs text-amber-700 mt-1">{conflicts?.summary}</p>
+          {conflicts?.conflicts && conflicts.conflicts.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              {conflicts.conflicts.slice(0, 2).map((conflict, idx) => (
+                <div
+                  key={idx}
+                  className="text-xs p-2 rounded-lg"
+                  style={{ backgroundColor: 'rgba(251, 191, 36, 0.1)' }}
                 >
-                  <span className="text-lg">
-                    {cat.categoryType === 'decision' ? '✅' : '📁'}
-                  </span>
-                  <span className="text-sm font-medium text-gray-800">{cat.name}</span>
-                </button>
+                  <div className="font-medium text-amber-800">违反约束 #{conflict.constraintIndex + 1}</div>
+                  <div className="text-amber-600 mt-0.5">约束: {conflict.constraintText}</div>
+                  <div className="text-amber-600">冲突: {conflict.prdViolation}</div>
+                </div>
               ))}
             </div>
-          </>
-        )}
-
-        <div className="flex gap-2">
+          )}
           <button
-            onClick={onClose}
-            className="flex-1 py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+            onClick={onStartPressureTest}
+            className="mt-3 text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-all hover:scale-105"
+            style={{ backgroundColor: '#8B5CF6' }}
           >
-            取消
-          </button>
-          <button
-            onClick={handleSelect}
-            disabled={!forcedCategory && !selectedCategory}
-            className="flex-1 py-2 rounded-xl text-sm font-medium text-white transition-colors"
-            style={{
-              backgroundColor: forcedCategory || selectedCategory ? '#8B5CF6' : '#D1D5DB',
-              cursor: forcedCategory || selectedCategory ? 'pointer' : 'not-allowed'
-            }}
-          >
-            创建
+            🔍 开启压力测试
           </button>
         </div>
       </div>
@@ -422,604 +78,363 @@ function TemplateSelector({ onSelect, onClose, activeProject }) {
   )
 }
 
-function DocumentSection({ doc }) {
-  const { standardizeContent, updateDocument, navigateToDoc, projectTree, addDocument, toggleDecisionStatus, documentConflicts, auditConstitutionVsPRD, activeProjectId, expertMode, switchExpertMode, summonMentor } = useLab()
-  const [loading, setLoading] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const [editContent, setEditContent] = useState(doc.content || '')
-  const [showLinkSuggest, setShowLinkSuggest] = useState(false)
-  const [linkSuggestPos, setLinkSuggestPos] = useState({ x: 0, y: 0 })
-  const [linkSearchText, setLinkSearchText] = useState('')
-  const [highlightedIndex, setHighlightedIndex] = useState(0)
-  const [showTemplateSelector, setShowTemplateSelector] = useState(false)
-  const textareaRef = useRef(null)
-
-  const templateType = doc.docType || doc.typeKey || 'blank'
-  const isTemplateDoc = templateType !== 'blank' && templateType !== 'document' && templateType !== 'research' && templateType !== 'framework' && templateType !== 'analysis' && templateType !== 'report'
-  const isDecisionDoc = templateType === 'decision'
-
-  const allDocsMap = buildDocMap(projectTree)
-  const allDocNames = collectAllDocNames(projectTree)
-
-  const statusConfig = {
-    exploring: { label: '探索中', bg: '#FEF3C7', text: '#D97706', border: '#FCD34D', dot: '#FBBF24' },
-    locked: { label: '已确定', bg: '#D1FAE5', text: '#059669', border: '#A7F3D0', dot: '#10B981' },
-    rejected: { label: '已否决', bg: '#FEE2E2', text: '#DC2626', border: '#FECACA', dot: '#F87171' }
+function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasConflicts, conflicts, onStartPressureTest, allDocsMap }) {
+  const { selectDocument } = useLab()
+  
+  // 安全检查
+  if (!doc) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-4xl mb-4">📄</p>
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">文档不存在</h3>
+          <p className="text-sm text-gray-500">请选择其他文档</p>
+        </div>
+      </div>
+    )
   }
+  
+  const hasBacklinks = doc?.backlinks && Array.isArray(doc.backlinks) && doc.backlinks.length > 0
+  const hasReferences = doc?.references && Array.isArray(doc.references) && doc.references.length > 0
+  const showBacklinks = hasBacklinks || hasReferences
 
-  const handleStatusToggle = () => {
-    toggleDecisionStatus(doc.id)
-  }
-
-  const handleStandardize = async () => {
-    if (loading || doc.standardized) return
-    setLoading(true)
-    try {
-      const standardizedContent = await standardizeContent(doc.content, doc.typeKey || 'document')
-      updateDocument(doc.id, { content: standardizedContent, standardized: true })
-    } catch (error) {
-      console.error('标准化失败:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleStartEdit = () => {
-    if (isTemplateDoc) {
-      setEditing(true)
-    } else {
-      setEditContent(doc.content || '')
-      setEditing(true)
-    }
-  }
-
-  const handleSaveEdit = () => {
-    updateDocument(doc.id, { content: editContent })
-    setEditing(false)
-    setShowLinkSuggest(false)
-  }
-
-  const handleCancelEdit = () => {
-    setEditContent(doc.content || '')
-    setEditing(false)
-    setShowLinkSuggest(false)
-  }
-
-  const handleFormSave = (data) => {
-    updateDocument(doc.id, {
-      name: data.name,
-      content: data.content || '',
-      fields: data.fields || {},
-      docType: data.docType || templateType
-    })
-    setEditing(false)
-  }
-
-  const handleFormCancel = () => {
-    setEditing(false)
-  }
-
-  const handleConvertToTemplate = (newType) => {
-    const existingContent = doc.content || ''
-    const defaultFields = createDefaultFields(newType)
-    if (existingContent && Object.keys(defaultFields).length > 0) {
-      const firstKey = Object.keys(defaultFields)[0]
-      defaultFields[firstKey] = existingContent
-    }
-    updateDocument(doc.id, {
-      docType: newType,
-      fields: defaultFields,
-      content: ''
-    })
-    setShowTemplateSelector(false)
-    setEditing(true)
-  }
-
-  const handleTextareaChange = (e) => {
-    const value = e.target.value
-    setEditContent(value)
-
-    const cursorPos = e.target.selectionStart
-    const textBeforeCursor = value.slice(0, cursorPos)
-
-    const bracketMatch = textBeforeCursor.match(/\[\[([^\]|]*)$/)
-    if (bracketMatch) {
-      const searchText = bracketMatch[1].toLowerCase()
-      setLinkSearchText(searchText)
-
-      const filtered = allDocNames.filter(d =>
-        d.id !== doc.id && d.name.toLowerCase().includes(searchText)
-      ).slice(0, 8)
-
-      if (filtered.length > 0) {
-        const rect = textareaRef.current?.getBoundingClientRect()
-        if (rect) {
-          setLinkSuggestPos({ x: rect.left + 20, y: rect.bottom - 40 })
-        }
-        setShowLinkSuggest(true)
-        setHighlightedIndex(0)
-      } else {
-        setShowLinkSuggest(false)
-      }
-    } else {
-      setShowLinkSuggest(false)
-    }
-  }
-
-  const handleTextareaKeyDown = (e) => {
-    if (!showLinkSuggest) return
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setHighlightedIndex(prev =>
-        prev < filteredSuggestions.length - 1 ? prev + 1 : 0
-      )
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setHighlightedIndex(prev =>
-        prev > 0 ? prev - 1 : filteredSuggestions.length - 1
-      )
-    } else if (e.key === 'Enter') {
-      e.preventDefault()
-      if (filteredSuggestions[highlightedIndex]) {
-        handleLinkSelect(filteredSuggestions[highlightedIndex])
-      }
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      setShowLinkSuggest(false)
-    }
-  }
-
-  const handleLinkSelect = (selectedDoc) => {
-    const cursorPos = textareaRef.current?.selectionStart || 0
-    const result = insertWikiLink(editContent, cursorPos, selectedDoc.name, selectedDoc.id)
-    setEditContent(result.content)
-    setShowLinkSuggest(false)
-
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus()
-        textareaRef.current.setSelectionRange(result.cursorOffset, result.cursorOffset)
-      }
-    }, 0)
-  }
-
-  const handleLinkClick = (docId, titleToCreate) => {
+  const handleLinkClick = (docId) => {
     if (docId) {
-      navigateToDoc(docId)
-    } else if (titleToCreate) {
-      const newDocId = addDocument('cat-insight', {
-        name: titleToCreate,
-        docType: 'blank',
-        typeKey: 'document',
-        fields: {},
-        content: ''
-      })
-      setTimeout(() => navigateToDoc(newDocId), 200)
+      selectDocument(docId)
     }
   }
 
-  const filteredSuggestions = allDocNames.filter(d =>
-    d.id !== doc.id && d.name.toLowerCase().includes(linkSearchText.toLowerCase())
-  ).slice(0, 8)
-
-  const displayTypeLabel = isTemplateDoc ? getTemplateLabel(templateType) : (doc.type || '文档')
+  const handleDeleteClick = () => {
+    if (confirm('确定要删除此文档吗？此操作不可撤销。')) {
+      onDelete()
+    }
+  }
 
   return (
-    <section
-      id={`section-${doc.id}`}
-      className="mb-8 scroll-mt-4"
-    >
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <h3 className="text-base font-semibold text-gray-800">{doc.name}</h3>
-          {doc.standardized && (
-            <span
-              className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-              style={{
-                backgroundColor: 'rgba(34, 197, 94, 0.12)',
-                color: '#16a34a',
-                border: '1px solid rgba(34, 197, 94, 0.3)'
-              }}
-            >
-              Standardized
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
-            style={{ backgroundColor: '#F3F4F6', color: '#6B7280' }}
-          >
-            {isTemplateDoc && <span>{getTemplateIcon(templateType)}</span>}
-            {displayTypeLabel}
-          </span>
-          {isDecisionDoc && (
-            <span
-              onClick={handleStatusToggle}
-              className="text-[10px] px-2 py-0.5 rounded-full font-medium cursor-pointer flex items-center gap-1 transition-all hover:scale-105 active:scale-95"
-              style={{
-                backgroundColor: statusConfig[doc.status]?.bg || '#F3F4F6',
-                color: statusConfig[doc.status]?.text || '#6B7280',
-                border: `1px solid ${statusConfig[doc.status]?.border || '#E5E7EB'}`
-              }}
-              title="点击切换状态"
-            >
-              <span style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                backgroundColor: statusConfig[doc.status]?.dot || '#D1D5DB'
-              }} />
-              {statusConfig[doc.status]?.label || '未知'}
-            </span>
-          )}
-          {!editing && (
-            <button
-              onClick={handleStartEdit}
-              className="flex items-center justify-center w-7 h-7 rounded-lg transition-all hover:scale-110 active:scale-95"
-              style={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB' }}
-              title="编辑"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path d="M8.5 1.5L10.5 3.5L4 10H2V8L8.5 1.5Z" stroke="#6B7280" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          )}
-          {!isTemplateDoc && (
-            <>
-              <button
-                onClick={handleStandardize}
-                disabled={loading || doc.standardized}
-                className="flex items-center justify-center w-7 h-7 rounded-lg transition-all hover:scale-110 active:scale-95"
-                style={{
-                  backgroundColor: doc.standardized ? '#F3F4F6' : '#F9FAFB',
-                  opacity: doc.standardized ? 0.5 : 1,
-                  cursor: doc.standardized ? 'default' : 'pointer',
-                  border: '1px solid #E5E7EB'
-                }}
-                title="AI 标准化"
-              >
-                {loading ? <Spinner /> : <span style={{ fontSize: '14px' }}>✨</span>}
-              </button>
-              <button
-                onClick={() => setShowTemplateSelector(true)}
-                className="flex items-center justify-center w-7 h-7 rounded-lg transition-all hover:scale-110 active:scale-95"
-                style={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB' }}
-                title="转换为模板"
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <rect x="1.5" y="1.5" width="9" height="9" rx="1.5" stroke="#8B5CF6" strokeWidth="1" />
-                  <path d="M4 6H8M6 4V8" stroke="#8B5CF6" strokeWidth="1" strokeLinecap="round" />
-                </svg>
-              </button>
-              <button
-                onClick={() => summonMentor(doc.id)}
-                className="flex items-center justify-center px-2 h-7 rounded-lg transition-all hover:scale-105 active:scale-95 text-xs font-medium"
-                style={{ backgroundColor: '#8B5CF6', color: 'white', border: 'none' }}
-                title="召唤导师深度追问"
-              >
-                ✨ 召唤导师
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {documentConflicts[doc.id]?.hasConflict && (
-        <div
-          className="mb-4 p-4 rounded-xl"
-          style={{
-            backgroundColor: '#FFFBEB',
-            border: '1px solid #FEF3C7'
-          }}
-        >
-          <div className="flex items-start gap-3">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              className="flex-shrink-0 mt-0.5"
-            >
-              <path
-                d="M8 2L14 12H2L8 2Z"
-                stroke="#F59E0B"
-                strokeWidth="1.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path d="M8 5V8" stroke="#F59E0B" strokeWidth="1.2" strokeLinecap="round" />
-              <circle cx="8" cy="11" r="1" fill="#F59E0B" />
-            </svg>
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-amber-900">宪法冲突检测</h4>
-                <button
-                  onClick={() => auditConstitutionVsPRD(activeProjectId, doc.id)}
-                  className="text-xs px-2 py-1 rounded-lg font-medium text-amber-700 hover:bg-amber-100 transition-colors"
-                >
-                  重新检测
-                </button>
-              </div>
-              <p className="text-xs text-amber-700 mt-1">{documentConflicts[doc.id]?.summary}</p>
-              <div className="mt-2 space-y-1.5">
-                {documentConflicts[doc.id]?.conflicts.map((conflict, idx) => (
-                  <div
-                    key={idx}
-                    className="text-xs p-2 rounded-lg"
-                    style={{ backgroundColor: 'rgba(251, 191, 36, 0.1)' }}
-                  >
-                    <div className="font-medium text-amber-800">违反约束 #{conflict.constraintIndex + 1}</div>
-                    <div className="text-amber-600 mt-0.5">约束: {conflict.constraintText}</div>
-                    <div className="text-amber-600">冲突: {conflict.prdViolation}</div>
-                  </div>
-                ))}
-              </div>
-              <button
-                onClick={() => {
-                  if (expertMode !== 'pressure') {
-                    switchExpertMode('pressure')
-                  }
-                }}
-                className="mt-3 text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-all hover:scale-105"
-                style={{ backgroundColor: '#8B5CF6' }}
-              >
-                🔍 开启压力测试
-              </button>
-            </div>
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-gray-800">{doc?.name || '未命名文档'}</h1>
+          <div className="flex items-center gap-3 mt-1">
+            <span className="text-xs text-gray-500">{categoryName}</span>
+            {doc?.updatedAt && (
+              <span className="text-xs text-gray-400">
+                更新于 {new Date(doc.updatedAt).toLocaleDateString('zh-CN')}
+              </span>
+            )}
           </div>
         </div>
-      )}
-
-      <div
-        className="p-5 rounded-xl"
-        style={{
-          backgroundColor: '#FFFFFF',
-          border: '1px solid #F3F4F6',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-        }}
-      >
-        {editing ? (
-          isTemplateDoc ? (
-            <DocumentForm doc={doc} onSave={handleFormSave} onCancel={handleFormCancel} />
-          ) : (
-            <div className="relative">
-              <textarea
-                ref={textareaRef}
-                value={editContent}
-                onChange={handleTextareaChange}
-                onKeyDown={handleTextareaKeyDown}
-                className="w-full min-h-[120px] text-sm leading-relaxed text-gray-700 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-100 resize-y"
-                style={{
-                  backgroundColor: '#FAFAFA',
-                  border: '1px solid #E5E7EB',
-                  fontFamily: 'inherit'
-                }}
-                placeholder="输入内容... 输入 [[ 可引用其他文档"
-              />
-              <div className="flex items-center gap-2 mt-2">
-                <button
-                  onClick={handleSaveEdit}
-                  className="text-xs px-3 py-1.5 rounded-lg font-medium text-white"
-                  style={{ backgroundColor: '#8B5CF6' }}
-                >
-                  保存
-                </button>
-                <button
-                  onClick={handleCancelEdit}
-                  className="text-xs px-3 py-1.5 rounded-lg font-medium text-gray-500 hover:bg-gray-100"
-                >
-                  取消
-                </button>
-                <span className="text-[10px] text-gray-400 ml-auto">输入 [[ 引用其他文档</span>
-              </div>
-              <LinkSuggestPopover
-                show={showLinkSuggest}
-                position={linkSuggestPos}
-                suggestions={filteredSuggestions}
-                onSelect={handleLinkSelect}
-                highlightedIndex={highlightedIndex}
-              />
-            </div>
-          )
-        ) : (
-          <>
-            {isTemplateDoc ? (
-              <DocumentRenderer doc={doc} />
-            ) : (
-              renderContentWithAnchorsAndLinks(doc.content, doc.outline, allDocsMap, handleLinkClick)
-            )}
-            <RelatedDocuments doc={doc} allDocsMap={allDocsMap} onLinkClick={handleLinkClick} />
-          </>
-        )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleDeleteClick}
+            className="text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-all hover:scale-105 active:scale-95"
+            style={{ backgroundColor: '#EF4444', borderRadius: '9px' }}
+          >
+            删除
+          </button>
+          <button
+            onClick={onSummonMentor}
+            className="text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-all hover:scale-105 active:scale-95"
+            style={{ backgroundColor: '#7C3AED' }}
+          >
+            ✨ 召唤导师
+          </button>
+          <button
+            onClick={onEdit}
+            className="text-xs px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-all"
+          >
+            编辑
+          </button>
+        </div>
       </div>
 
-      {showTemplateSelector && (
-        <TemplateSelector
-          onSelect={handleConvertToTemplate}
-          onClose={() => setShowTemplateSelector(false)}
-        />
-      )}
-    </section>
+      <div className="flex-1 overflow-auto px-6 py-4">
+        {hasConflicts && conflicts && (
+          <DocumentConflictWarning 
+            conflicts={conflicts} 
+            onStartPressureTest={onStartPressureTest} 
+          />
+        )}
+
+        <div
+          className="p-6 rounded-xl"
+          style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid #E5E7EB',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+          }}
+        >
+          <DocumentRenderer doc={doc} />
+        </div>
+
+        {showBacklinks && (
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-gray-500 mb-2">← 被引用</p>
+                {hasBacklinks ? (
+                  <div className="space-y-1">
+                    {(doc.backlinks || []).map(blId => {
+                      const blDoc = allDocsMap?.[blId]
+                      return (
+                        <div
+                          key={blId}
+                          onClick={() => blDoc && handleLinkClick(blId)}
+                          className="text-sm text-blue-600 cursor-pointer hover:underline truncate"
+                        >
+                          {blDoc ? blDoc.name : blId}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400">暂无</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-2">→ 引用</p>
+                {hasReferences ? (
+                  <div className="space-y-1">
+                    {(doc.references || []).map(refId => {
+                      const refDoc = allDocsMap?.[refId]
+                      return (
+                        <div
+                          key={refId}
+                          onClick={() => refDoc && handleLinkClick(refId)}
+                          className="text-sm text-blue-600 cursor-pointer hover:underline truncate"
+                        >
+                          {refDoc ? refDoc.name : refId}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400">暂无</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function EditingView({ doc, categoryName, onSave, onCancel, allDocsMap }) {
+  const handleSave = (data) => {
+    onSave(data)
+  }
+  
+  // 安全检查
+  if (!doc) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-4xl mb-4">📝</p>
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">文档不存在</h3>
+          <p className="text-sm text-gray-500">无法找到要编辑的文档</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-gray-800">{doc?.name || '未命名文档'}</h1>
+          <div className="flex items-center gap-3 mt-1">
+            <span className="text-xs text-gray-500">{categoryName}</span>
+            <span className="text-xs text-purple-500">编辑中</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto px-6 py-4">
+        <div
+          className="p-6 rounded-xl"
+          style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid #E5E7EB'
+          }}
+        >
+          <DocumentForm 
+            doc={doc} 
+            onSave={handleSave} 
+            onCancel={onCancel} 
+          />
+        </div>
+      </div>
+    </div>
   )
 }
 
 export default function ArchivePanel() {
-  const { activeProject, allDocuments, activeDocId, setActiveDocId, addDocument, findNodeById } = useLab()
-  const scrollRef = useRef(null)
-  const [showNewDocSelector, setShowNewDocSelector] = useState(false)
+  const { 
+    projectTree, 
+    activeProjectId, 
+    activeDocId, 
+    currentProject, 
+    findNodeById,
+    saveDocument,
+    deleteDocument,
+    selectDocument,
+    documentConflicts,
+    switchExpertMode,
+    expertMode,
+    setProjectMemories,
+    setLabMessageToSend,
+    setAutoSendLabMessage,
+    setActiveLabTab,
+    labMode,
+    setLabMode
+  } = useLab()
 
-  // 安全访问 allDocuments，防止 undefined 错误
-  const safeAllDocuments = Array.isArray(allDocuments) ? allDocuments : []
+  const [editingDocId, setEditingDocId] = useState(null)
+  const [previousDocId, setPreviousDocId] = useState(null)
 
-  const getActiveDocument = () => {
-    if (!activeDocId) {
-      return null
-    }
+  const allDocsMap = buildDocMap(projectTree)
 
-    // 1. 先从 safeAllDocuments 中查找（最快）
-    let doc = safeAllDocuments.find(d => d && d.id === activeDocId)
-    if (doc) {
-      return doc
-    }
+  const selectedDoc = activeDocId ? findNodeById(activeDocId) : null
 
-    // 2. 使用 findNodeById 从项目树递归查找
-    if (findNodeById) {
-      try {
-        doc = findNodeById(activeDocId)
-        if (doc && (doc.type === 'document' || doc.docType)) {
-          return doc
-        }
-      } catch (error) {
-        console.error('❌ findNodeById 调用失败:', error)
+  const getCategoryName = (docId) => {
+    if (!currentProject?.children || !docId) return ''
+    
+    for (const category of currentProject.children) {
+      if (category?.children?.some(child => child?.id === docId)) {
+        return category.name
       }
     }
-
-    // 3. 特殊处理：如果 activeDocId 是 'core-positioning' 或包含 'manifesto'
-    if ((activeDocId === 'core-positioning' || activeDocId.includes('manifesto')) && activeProject) {
-      const manifestoDoc = activeProject.children?.flatMap(cat => cat.children || [])
-        .find(doc => doc.docType === 'manifesto' || doc.typeKey === 'manifesto' || doc.id.includes('manifesto'))
-
-      if (manifestoDoc) {
-        return manifestoDoc
-      }
-    }
-
-    // 4. 最后尝试：在 activeProject 的所有子节点中深度搜索
-    if (activeProject?.children) {
-      for (const category of activeProject.children) {
-        if (!category.children) continue
-
-        // 精确匹配或模糊匹配
-        const found = category.children.find(doc =>
-          doc.id === activeDocId ||
-          doc.docType === activeDocId ||
-          doc.typeKey === activeDocId ||
-          doc.id.includes(activeDocId) ||
-          activeDocId.includes(doc.id)
-        )
-
-        if (found) {
-          return found
-        }
-      }
-    }
-
-    return null
+    return ''
   }
-
-  const activeDocument = getActiveDocument()
 
   useEffect(() => {
-    // 监听 activeDocId 和 activeDocument 变化
-  }, [activeDocId, activeDocument])
+    if (activeDocId && activeDocId !== previousDocId && selectedDoc) {
+      const isNew = !selectedDoc.updatedAt || 
+        (new Date(selectedDoc.updatedAt).getTime() > Date.now() - 2000)
+      
+      if (isNew) {
+        setEditingDocId(activeDocId)
+      }
+    }
+    setPreviousDocId(activeDocId)
+  }, [activeDocId, selectedDoc])
 
-  const handleCreateDocument = (templateType, categoryId) => {
-    setShowNewDocSelector(false)
+  const handleEdit = () => {
+    setEditingDocId(activeDocId)
+  }
 
-    const newDocId = addDocument(categoryId, {
-      name: '未命名文档',
-      docType: templateType,
-      typeKey: templateType,
-      fields: templateType !== 'blank' ? createDefaultFields(templateType) : {},
-      content: ''
+  const handleSave = (data) => {
+    if (!activeDocId) return
+    
+    saveDocument(activeDocId, {
+      name: data.name,
+      content: data.content || '',
+      fields: data.fields || {}
     })
-
-    setTimeout(() => {
-      setActiveDocId(newDocId)
-    }, 200)
+    setEditingDocId(null)
   }
 
-  const handleBackToOverview = () => {
-    setActiveDocId(null)
+  const handleCancel = () => {
+    setEditingDocId(null)
   }
 
-  const handleSummonMentorForDoc = (doc) => {
-    console.log('🎓 召唤导师查看文档:', doc.name || doc.id)
+  const handleDelete = () => {
+    if (!activeDocId) return
+    
+    console.log('🗑️ 开始删除文档:', activeDocId)
+    // 先清除所有状态，防止渲染时访问已删除的文档
+    selectDocument(null)
+    setEditingDocId(null)
+    // 然后再执行删除操作
+    deleteDocument(activeDocId)
+    console.log('✅ 文档删除完成')
   }
 
-  // ========== 核心渲染逻辑 ==========
-  // 情况 1：选中了具体文档且找到了 → 显示文档详情
-  if (activeDocId && activeDocument) {
-    return (
-      <div
-        className="h-full flex flex-col overflow-hidden"
-        style={{ backgroundColor: '#FFFFFF', minWidth: 0 }}
-      >
-        <DocumentDetail
-          doc={activeDocument}
-          onBack={handleBackToOverview}
-          onSummonMentor={handleSummonMentorForDoc}
-        />
-      </div>
-    )
+  const handleSummonMentor = () => {
+    if (!selectedDoc || !currentProject) return
+
+    const projectMemory = {
+      projectId: activeProjectId,
+      totalInteractions: 1,
+      lastUpdated: new Date().toISOString(),
+      insights: [],
+      discussionTopics: []
+    }
+
+    setProjectMemories(prev => ({
+      ...prev,
+      [activeProjectId]: projectMemory
+    }))
+
+    const messageContent = `请深入分析当前文档：「${selectedDoc.name}」。
+
+文档内容：
+${selectedDoc.content || JSON.stringify(selectedDoc.fields || {}, null, 2)}
+
+请提出深度追问，帮助我完善这份文档。`
+
+    setLabMessageToSend(messageContent)
+    setAutoSendLabMessage(true)
+    setActiveLabTab('practice')
+    
+    if (labMode !== 'practice') {
+      setLabMode('practice')
+    }
   }
 
-  // 情况 2：有 activeDocId 但找不到文档 → 显示错误提示
-  if (activeDocId && !activeDocument) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center" style={{ backgroundColor: '#F9FAFB' }}>
-        <div className="text-center">
-          <p className="text-4xl mb-4">🔍</p>
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">文档未找到</h3>
-          <p className="text-sm text-gray-500 mb-4">无法找到 ID 为 "{activeDocId}" 的文档</p>
-          <button
-            onClick={handleBackToOverview}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-all hover:scale-105"
-            style={{ backgroundColor: '#8B5CF6' }}
-          >
-            返回文档列表
-          </button>
-        </div>
-      </div>
-    )
+  const handleStartPressureTest = () => {
+    if (expertMode !== 'pressure') {
+      switchExpertMode('pressure')
+    }
   }
 
-  // 情况 3：没有选中文档 → 显示模块概览列表（默认视图）
+  const isEditing = editingDocId && editingDocId === activeDocId
+  const categoryName = selectedDoc ? getCategoryName(selectedDoc.id) : ''
+  const hasConflicts = activeDocId && documentConflicts[activeDocId]?.hasConflict
+  const conflicts = activeDocId ? documentConflicts[activeDocId] : null
+
   return (
-    <div
+    <div 
       className="h-full flex flex-col overflow-hidden"
-      style={{ backgroundColor: '#F9FAFB', minWidth: 0 }}
+      style={{ backgroundColor: '#F9FAFB' }}
     >
-      <div className="px-6 pt-5 pb-3 flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-gray-700">资产沉淀区</h2>
-          <p className="text-xs text-gray-400 mt-0.5">{activeProject?.name || ''}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-400">
-            {allDocuments.length} 份文档
-          </span>
-          <button
-            onClick={() => setShowNewDocSelector(true)}
-            className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-all hover:scale-105 active:scale-95"
-            style={{ backgroundColor: '#8B5CF6' }}
-          >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-              <path d="M5 1V9M1 5H9" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
-            </svg>
-            新建文档
-          </button>
-        </div>
+      <div className="px-6 pt-4 pb-2">
+        <p className="text-xs text-gray-500">{currentProject?.name || ''}</p>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-auto px-6 pb-8">
-        {allDocuments.length === 0 ? (
-          <EmptyState onCreateNew={() => setShowNewDocSelector(true)} />
-        ) : (
-          allDocuments.map(doc => (
-            <DocumentSection key={doc.id} doc={doc} />
-          ))
-        )}
-      </div>
-
-      {showNewDocSelector && (
-        <TemplateSelector
-          onSelect={handleCreateDocument}
-          onClose={() => setShowNewDocSelector(false)}
-          activeProject={activeProject}
+      {!activeDocId && !editingDocId ? (
+        <div className="flex-1">
+          <EmptyState projectName={currentProject?.name || '思维实验室'} />
+        </div>
+      ) : selectedDoc && isEditing ? (
+        <EditingView 
+          doc={selectedDoc}
+          categoryName={categoryName}
+          onSave={handleSave}
+          onCancel={handleCancel}
+          allDocsMap={allDocsMap}
         />
+      ) : selectedDoc ? (
+        <ReadingView 
+          doc={selectedDoc}
+          categoryName={categoryName}
+          onEdit={handleEdit}
+          onSummonMentor={handleSummonMentor}
+          onDelete={handleDelete}
+          hasConflicts={hasConflicts}
+          conflicts={conflicts}
+          onStartPressureTest={handleStartPressureTest}
+          allDocsMap={allDocsMap}
+        />
+      ) : (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-4xl mb-4">🔍</p>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">文档未找到</h3>
+            <p className="text-sm text-gray-500">无法找到该文档</p>
+          </div>
+        </div>
       )}
     </div>
   )
