@@ -198,8 +198,25 @@ function SourceAnchor({ source, jumpToSource }) {
 }
 
 function BlankRenderer({ content, docId, jumpToSource }) {
-  const textContent = typeof content === 'object' ? content.text : content
-  const sources = typeof content === 'object' && content.sources ? content.sources : []
+  let textContent = content
+  let sources = []
+  
+  if (typeof content === 'object' && !Array.isArray(content)) {
+    textContent = content.text || JSON.stringify(content, null, 2)
+    sources = content.sources || []
+  } else if (typeof content === 'string') {
+    try {
+      const parsed = JSON.parse(content)
+      if (typeof parsed === 'object' && parsed.text) {
+        textContent = parsed.text
+        sources = parsed.sources || []
+      } else if (typeof parsed === 'object') {
+        textContent = JSON.stringify(parsed, null, 2)
+      }
+    } catch (e) {
+      textContent = content
+    }
+  }
   
   if (!textContent && sources.length === 0) {
     return <p className="text-sm text-gray-300">暂无内容</p>
@@ -274,16 +291,30 @@ export default function DocumentRenderer({ doc }) {
 
   const fields = doc.fields || {}
 
-  switch (templateType) {
-    case 'persona':
-      return <PersonaRenderer fields={fields} docId={docId} />
-    case 'canvas':
-      return <CanvasRenderer fields={fields} docId={docId} />
-    case 'prd':
-      return <PRDRenderer fields={fields} docId={docId} />
-    case 'decision':
-      return <DecisionRenderer fields={fields} docId={docId} />
-    default:
-      return <BlankRenderer content={doc.content} docId={docId} jumpToSource={jumpToSource} />
+  const renderTemplate = () => {
+    switch (templateType) {
+      case 'persona':
+        return <PersonaRenderer fields={fields} docId={docId} />
+      case 'canvas':
+        return <CanvasRenderer fields={fields} docId={docId} />
+      case 'prd':
+        return <PRDRenderer fields={fields} docId={docId} />
+      case 'decision':
+        return <DecisionRenderer fields={fields} docId={docId} />
+      default:
+        return null
+    }
   }
+
+  return (
+    <div>
+      {renderTemplate() || <BlankRenderer content={doc.content} docId={docId} jumpToSource={jumpToSource} />}
+      {doc.content && (
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">归档追加内容</p>
+          <BlankRenderer content={doc.content} docId={docId} jumpToSource={jumpToSource} />
+        </div>
+      )}
+    </div>
+  )
 }

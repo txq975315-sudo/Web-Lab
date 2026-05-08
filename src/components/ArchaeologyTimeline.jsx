@@ -1,6 +1,16 @@
 import { useLab } from '../context/LabContext'
 import { useState } from 'react'
 
+// 六模块分类（与项目树 categoryType 对齐）
+const MODULE_CATEGORIES = [
+  { value: 'constitution', label: '01 项目宪法' },
+  { value: 'market', label: '02 市场与用户洞察' },
+  { value: 'strategy', label: '03 策略与增长' },
+  { value: 'decision', label: '04 决策链图谱' },
+  { value: 'antifragile', label: '05 反脆弱审计' },
+  { value: 'roadmap', label: '06 执行路线图' }
+]
+
 function ChevronDown() {
   return (
     <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -93,28 +103,78 @@ function TimelineNode({ node, isLast }) {
 function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
   const [showProjectPicker, setShowProjectPicker] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState(null)
-  const [selectedCategory, setSelectedCategory] = useState('insight')
-  const { projectTree, archiveToProject, highlightNodeAfterRender, activeArchaeologyId, setActiveDocId, labMode } = useLab()
+  const [selectedCategory, setSelectedCategory] = useState('market')
+  const [selectedDocId, setSelectedDocId] = useState(null)
+  const [selectedFieldKey, setSelectedFieldKey] = useState(null)
+  const [pendingItem, setPendingItem] = useState(null)
+  const [archiveSuccess, setArchiveSuccess] = useState(null)
+  const { projectTree, archiveToProject, highlightNodeAfterRender, activeArchaeologyId, setActiveDocId, labMode, findNodeById, appendContentToDocument } = useLab()
+
+  const getProjectDocs = (projectId) => {
+    const project = projectTree.find(p => p.id === projectId)
+    if (!project || !project.children) return []
+    const docs = []
+    const walk = (nodes) => {
+      for (const node of nodes) {
+        if (node.type === 'document') docs.push(node)
+        if (node.children) walk(node.children)
+      }
+    }
+    for (const cat of project.children) {
+      if (cat.children) walk(cat.children)
+    }
+    return docs
+  }
 
   const handleArchive = (item) => {
     if (!selectedProjectId) {
+      setPendingItem(item)
       setShowProjectPicker(true)
       return
     }
     const result = archiveToProject(activeArchaeologyId, item, selectedProjectId, selectedCategory)
-    if (result.newDocId) {
+    if (result && result.newDocId) {
       const projectName = projectTree.find(p => p.id === selectedProjectId)?.name || ''
-      const categoryName = selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)
-      highlightNodeAfterRender(result.newDocId, () => {
-        setActiveDocId(result.newDocId)
-      })
+      const categoryName = MODULE_CATEGORIES.find(c => c.value === selectedCategory)?.label || selectedCategory
+      setArchiveSuccess({ projectName, categoryName, itemText: item.text || item.decision || item.item || '内容' })
+      setTimeout(() => setArchiveSuccess(null), 3000)
+    } else {
+      console.warn('Archive failed: no document created')
     }
     setShowProjectPicker(false)
     setSelectedProjectId(null)
+    setSelectedDocId(null)
+    setSelectedFieldKey(null)
+    setPendingItem(null)
+  }
+
+  const handleDirectArchive = async (item, docId, fieldKey) => {
+    const content = item.text || item.decision || item.item || item.area || item.summary || JSON.stringify(item)
+    const doc = findNodeById(docId)
+    if (!doc) return
+    
+    const itemType = item.decision ? '决策' : item.item ? '待办' : item.area ? '盲区' : '考古内容'
+    const structuredContent = `${itemType}：${content}${item.rationale ? '\n理由：' + item.rationale : ''}${item.priority ? '\n优先级：' + item.priority : ''}`
+    
+    appendContentToDocument(docId, structuredContent, fieldKey, false, {
+      projectId: activeArchaeologyId,
+      timestamp: new Date().toLocaleString('zh-CN')
+    })
+    
+    const projectName = projectTree.find(p => p.children?.some(c => c.children?.some(d => d.id === docId)))?.name || ''
+    setArchiveSuccess({ projectName, categoryName: doc.name, itemText: content.slice(0, 20) + '...' })
+    setTimeout(() => setArchiveSuccess(null), 3000)
   }
 
   return (
     <div className="rounded-xl p-3" style={{ backgroundColor: bg, border: `1px solid ${borderColor}` }}>
+      {archiveSuccess && (
+        <div className="mb-2 px-2 py-1.5 rounded-lg text-[10px] font-medium flex items-center gap-1.5"
+          style={{ backgroundColor: '#D1FAE5', color: '#065F46', border: '1px solid #A7F3D0' }}
+        >
+          ✅ 已归档到 <span className="font-semibold">{archiveSuccess.projectName}</span> → <span>{archiveSuccess.categoryName}</span>
+        </div>
+      )}
       <h4 className="text-[11px] font-semibold mb-2 flex items-center gap-1.5" style={{ color }}>
         <span style={{
           width: 6,
@@ -136,15 +196,20 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
       <div className="space-y-2">
         {items.map((item, i) => (
           <div key={i} className="p-2 rounded-lg" style={{ backgroundColor: '#FFFFFF' }}>
-            <p className="text-[11px] text-gray-700 leading-relaxed">{item.text || item.summary}</p>
-            <button
-              onClick={() => handleArchive(item)}
-              className="mt-1.5 text-[10px] font-medium flex items-center gap-1 transition-colors hover:opacity-80"
-              style={{ color }}
-            >
-              <ArchiveIcon />
-              归档到项目
-            </button>
+            <p className="text-[11px] text-gray-700 leading-relaxed">{item.text || item.decision || item.item || item.area || item.summary || '未提取到内容'}</p>
+            {item.rationale && (
+              <p className="text-[10px] text-gray-500 mt-1 italic">理由：{item.rationale}</p>
+            )}
+            <div className="mt-1.5 flex items-center gap-2">
+              <button
+                onClick={() => handleArchive(item)}
+                className="text-[10px] font-medium flex items-center gap-1 transition-colors hover:opacity-80"
+                style={{ color }}
+              >
+                <ArchiveIcon />
+                新建文档
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -152,11 +217,15 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
       {showProjectPicker && (
         <div className="mt-2 p-2 rounded-lg" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB' }}>
           <p className="text-[10px] text-gray-400 mb-1.5">选择目标项目</p>
-          <div className="space-y-1 mb-2">
+          <div className="space-y-1 mb-2 max-h-24 overflow-y-auto">
             {projectTree.map(project => (
               <button
                 key={project.id}
-                onClick={() => setSelectedProjectId(project.id)}
+                onClick={() => {
+                  setSelectedProjectId(project.id)
+                  setSelectedDocId(null)
+                  setSelectedFieldKey(null)
+                }}
                 className="w-full text-left px-2 py-1 rounded text-[11px] transition-colors"
                 style={{
                   backgroundColor: selectedProjectId === project.id ? '#F3F4F6' : 'transparent',
@@ -169,19 +238,45 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
           </div>
           {selectedProjectId && (
             <>
-              <p className="text-[10px] text-gray-400 mb-1">挂载节点</p>
-              <div className="flex gap-1">
-                {['insight', 'archive', 'decision'].map(cat => (
+              <p className="text-[10px] text-gray-400 mb-1">分类</p>
+              <div className="relative mb-2">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => {
+                    setSelectedCategory(e.target.value)
+                    setSelectedDocId(null)
+                    setSelectedFieldKey(null)
+                  }}
+                  className="w-full px-2 py-1 text-[10px] bg-gray-50 rounded-lg border-none outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer appearance-none"
+                  style={{ paddingRight: '20px' }}
+                >
+                  {MODULE_CATEGORIES.map(cat => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                  <ChevronDown />
+                </div>
+              </div>
+              
+              <p className="text-[10px] text-gray-400 mb-1">或直接归档到已有文档</p>
+              <div className="space-y-1 mb-2 max-h-24 overflow-y-auto">
+                {getProjectDocs(selectedProjectId).slice(0, 10).map(doc => (
                   <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className="px-2 py-1 rounded text-[10px] transition-colors"
+                    key={doc.id}
+                    onClick={() => {
+                      setSelectedDocId(doc.id)
+                      setSelectedCategory(null)
+                    }}
+                    className="w-full text-left px-2 py-1 rounded text-[10px] transition-colors truncate"
                     style={{
-                      backgroundColor: selectedCategory === cat ? '#F3F4F6' : 'transparent',
-                      color: selectedCategory === cat ? '#111827' : '#9CA3AF'
+                      backgroundColor: selectedDocId === doc.id ? '#EDE9FE' : 'transparent',
+                      color: selectedDocId === doc.id ? '#7C3AED' : '#6B7280'
                     }}
                   >
-                    {cat === 'insight' ? 'Insight' : cat === 'archive' ? 'Archive' : 'Decision'}
+                    {doc.name || '未命名文档'}
                   </button>
                 ))}
               </div>
@@ -189,23 +284,33 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
           )}
           <div className="flex gap-1.5 mt-2">
             <button
-              onClick={() => setShowProjectPicker(false)}
+              onClick={() => {
+                setShowProjectPicker(false)
+                setSelectedProjectId(null)
+                setSelectedDocId(null)
+                setSelectedFieldKey(null)
+                setPendingItem(null)
+              }}
               className="flex-1 py-1 rounded text-[10px] text-gray-500 hover:bg-gray-100"
             >
               取消
             </button>
             <button
               onClick={() => {
-                if (selectedProjectId) {
-                  handleArchive({})
-                  setShowProjectPicker(false)
+                if (pendingItem) {
+                  if (selectedDocId) {
+                    handleDirectArchive(pendingItem, selectedDocId, selectedFieldKey)
+                    setShowProjectPicker(false)
+                  } else {
+                    handleArchive(pendingItem)
+                  }
                 }
               }}
               className="flex-1 py-1 rounded text-[10px] font-medium text-white"
               style={{ backgroundColor: color }}
-              disabled={!selectedProjectId}
+              disabled={!pendingItem || (!selectedProjectId && !selectedDocId)}
             >
-              确认归档
+              {selectedDocId ? '追加到文档' : '创建新文档'}
             </button>
           </div>
         </div>

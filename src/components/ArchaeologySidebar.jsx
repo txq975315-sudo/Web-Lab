@@ -35,7 +35,7 @@ function formatDate(isoString) {
   return `${month}/${day} ${hours}:${minutes}`
 }
 
-export default function ArchaeologySidebar() {
+export default function ArchaeologySidebar({ compact = false }) {
   const {
     archaeologySessions,
     activeArchaeologyId,
@@ -43,6 +43,83 @@ export default function ArchaeologySidebar() {
     deleteArchaeologySession,
     switchLabMode
   } = useLab()
+
+  if (compact) {
+    return (
+      <div
+        className="h-full w-full flex flex-col overflow-hidden"
+        style={{
+          backgroundColor: '#FFFFFF'
+        }}
+      >
+        <div className="px-3 pt-3 pb-1 flex items-center justify-between">
+          <p className="text-[9px] tracking-wide uppercase" style={{ color: '#9CA3AF' }}>
+            考古记录
+          </p>
+        </div>
+
+        <div className="flex-1 overflow-auto px-2 pb-3">
+          {archaeologySessions.length === 0 && (
+            <div className="px-2 py-4 text-center">
+              <p className="text-[10px] text-gray-300">暂无记录</p>
+            </div>
+          )}
+
+          {archaeologySessions.map((session, index) => {
+            const isActive = activeArchaeologyId === session.id
+            const decisionCount = session.decisions?.length || 0
+
+            return (
+              <div
+                key={session.id}
+                onClick={() => setActiveArchaeologyId(session.id)}
+                className="px-2 py-1.5 rounded-lg cursor-pointer transition-colors mb-1 group relative"
+                style={{
+                  backgroundColor: isActive ? '#FEF3C7' : 'transparent',
+                  border: isActive ? '1px solid #FCD34D' : '1px solid transparent'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) e.currentTarget.style.backgroundColor = '#F9FAFB'
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'
+                }}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className="text-[10px] font-medium truncate"
+                      style={{ color: isActive ? '#92400E' : '#4B5563' }}
+                    >
+                      #{archaeologySessions.length - index}
+                    </p>
+                    {decisionCount > 0 && (
+                      <span className="text-[8px] text-amber-600">
+                        {decisionCount}个决策
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (confirm('确定要删除这条考古记录吗？')) {
+                        deleteArchaeologySession(session.id)
+                      }
+                    }}
+                    className="w-4 h-4 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+                    style={{ color: '#9CA3AF' }}
+                    title="删除"
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

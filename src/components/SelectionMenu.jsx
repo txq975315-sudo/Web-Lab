@@ -106,14 +106,24 @@ function recommendDocument(text, documents) {
   return bestMatch
 }
 
+// 六模块分类定义（与项目树 categoryType 对齐）
+const QUICK_CATEGORIES = [
+  { value: 'constitution', label: '01 项目宪法', icon: '🔒', color: '#8B5CF6' },
+  { value: 'market', label: '02 市场与用户洞察', icon: '👤', color: '#3B82F6' },
+  { value: 'strategy', label: '03 策略与增长', icon: '🚀', color: '#F59E0B' },
+  { value: 'decision', label: '04 决策链图谱', icon: '⚖️', color: '#10B981' },
+  { value: 'antifragile', label: '05 反脆弱审计', icon: '💀', color: '#EF4444' },
+  { value: 'roadmap', label: '06 执行路线图', icon: '🚩', color: '#6B7280' }
+]
+
 function classifyByKeywords(text) {
   const keywordRules = [
-    { keywords: ['必须', '只能', '绝不', '禁止', '不得'], category: 'decision', label: '硬性约束' },
+    { keywords: ['必须', '只能', '绝不', '禁止', '不得'], category: 'constitution', label: '硬性约束' },
     { keywords: ['决定', '拍板', '定了', '确定', '决议'], category: 'decision', label: '已做决策' },
     { keywords: ['放弃', '砍掉', '排除', '否决', '取消'], category: 'decision', label: '否决墓地' },
-    { keywords: ['灵感', '也许', '可能', '想法', '创意'], category: 'insight', label: 'Insight' },
-    { keywords: ['功能', '规格', '技术', '设计', 'PRD'], category: 'archive', label: 'Archive' },
-    { keywords: ['用户', '客户', '人群', '画像'], category: 'insight', label: '用户洞察' }
+    { keywords: ['用户', '客户', '人群', '画像'], category: 'market', label: '用户洞察' },
+    { keywords: ['灵感', '也许', '可能', '想法', '创意'], category: 'market', label: '创意灵感' },
+    { keywords: ['功能', '规格', '技术', '设计', 'PRD'], category: 'strategy', label: '产品策略' }
   ]
   
   for (const rule of keywordRules) {
@@ -198,7 +208,7 @@ export default function SelectionMenu({ text, position, onClose }) {
       timestamp: new Date().toLocaleString('zh-CN')
     }
     
-    appendContentToDocument(docId, text, fieldKey, usePolish, source)
+    await appendContentToDocument(docId, text, fieldKey, usePolish, source)
     
     highlightNodeAfterRender(docId, () => {
       setActiveDocId(docId)
@@ -213,7 +223,7 @@ export default function SelectionMenu({ text, position, onClose }) {
     const newDoc = {
       name: text.slice(0, 30) + (text.length > 30 ? '...' : ''),
       content: text,
-      docType: selectedCategory === 'decision' ? 'decision' : selectedCategory === 'insight' ? 'insight' : 'archive',
+      docType: 'blank',
       fields: {}
     }
     
@@ -346,9 +356,11 @@ export default function SelectionMenu({ text, position, onClose }) {
                   className="w-full px-3 py-1.5 text-xs bg-gray-50 rounded-lg border-none outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer appearance-none"
                 >
                   <option value="">选择分类</option>
-                  <option value="decision">Decision (决策)</option>
-                  <option value="insight">Insight (洞察)</option>
-                  <option value="archive">Archive (归档)</option>
+                  {QUICK_CATEGORIES.map(cat => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </option>
+                  ))}
                 </select>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                   <ChevronDown />

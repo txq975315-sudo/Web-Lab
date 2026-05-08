@@ -3,6 +3,7 @@ import { useLocalStorage, STORAGE_KEYS } from '../hooks/useLocalStorage'
 import { syncAllBacklinks, extractReferencedIds } from '../utils/linkParser'
 import { getForcedCategory, TEMPLATES } from '../config/templates'
 import { autoGenerateOutline } from '../utils/outlineGenerator'
+import { migrateProjectTreeIfNeeded } from '../utils/projectTreeMigration'
 
 const LabContext = createContext(null)
 
@@ -515,16 +516,25 @@ export function LabProvider({ children }) {
   const [labMessageToSend, setLabMessageToSend] = useState(null)
   const [autoSendLabMessage, setAutoSendLabMessage] = useState(false)
 
-  // 初始化 state
-  const initialState = {
-    projectTree: storedProjectTree,
-    activeProjectId: storedActiveProjectId,
-    activeDocId: null,
-    activeHeadingId: null,
-    expertMode: storedExpertMode
-  }
-
-  const [state, dispatch] = useReducer(labReducer, initialState)
+  // 首次加载时迁移旧版三栏（Insight/Archive/Decision）→ 标准 01–06 模块，并写入 localStorage
+  const [state, dispatch] = useReducer(
+    labReducer,
+    {
+      projectTree: storedProjectTree,
+      activeProjectId: storedActiveProjectId,
+      expertMode: storedExpertMode
+    },
+    (args) => {
+      const { tree } = migrateProjectTreeIfNeeded(args.projectTree)
+      return {
+        projectTree: tree,
+        activeProjectId: args.activeProjectId,
+        activeDocId: null,
+        activeHeadingId: null,
+        expertMode: args.expertMode
+      }
+    }
+  )
 
   // 同步到 localStorage
   useEffect(() => {
@@ -663,6 +673,74 @@ export function LabProvider({ children }) {
   const addDocument = useCallback((parentId, docData) => {
     return createDocument(parentId, docData)
   }, [])
+
+  // 链路 B/C：归档相关方法
+  const appendContentToDocument = useCallback(async (docId, text, fieldKey, usePolish, source) => {
+    const currentDoc = findNodeById(state.projectTree, docId)
+    
+    // 处理智能润色
+    let finalText = text
+    if (usePolish) {
+      try {
+        const { chatComplete } = await import('../utils/aiApi')
+        const polishResult = await chatComplete([
+          { 
+            role: 'system', 
+            content: '你是一个专业的文档润色助手。请对用户提供的内容进行润色，使其更加专业、简洁、有条理。保持原意不变。直接返回润色后的内容，不要添加任何解释。' 
+          },
+          { role: 'user', content: text }
+        ])
+        finalText = polishResult || text
+      } catch (e) {
+        console.warn('润色失败，使用原文:', e)
+        finalText = text
+      }
+    }
+    
+    const sourceLine = source ? `\n\n> 来源: ${source.timestamp || ''}` : ''
+    const appendedContent = finalText + sourceLine
+    
+    if (fieldKey && currentDoc?.fields) {
+      saveDocument(docId, {
+        fields: { ...currentDoc.fields, [fieldKey]: finalText },
+        content: (currentDoc.content || '') + '\n---\n' + appendedContent
+      })
+    } else {
+      saveDocument(docId, {
+        content: (currentDoc.content || '') + '\n---\n' + appendedContent
+      })
+    }
+  }, [saveDocument, state.projectTree])
+
+  const highlightNodeAfterRender = useCallback((docId, callback) => {
+    setHighlightedDocId(docId)
+    if (callback) setTimeout(callback, 200)
+  }, [setHighlightedDocId])
+
+  const addDocumentToCategory = useCallback((projectId, categoryType, docData) => {
+    const project = state.projectTree.find(p => p.id === projectId)
+    if (!project) return {}
+    const category = project.children?.find(c => c.categoryType === categoryType)
+    if (!category) return {}
+    const docId = createDocument(category.id, docData)
+    return { newDocId: docId }
+  }, [state.projectTree, createDocument])
+
+  const archiveToProject = useCallback((archaeologyId, item, projectId, category) => {
+    return addDocumentToCategory(projectId, category, {
+      name: item.text || item.summary || '考古归档',
+      content: JSON.stringify(item),
+      docType: 'blank',
+      fields: {}
+    })
+  }, [addDocumentToCategory])
+
+  const deleteArchaeologySession = useCallback((sessionId) => {
+    setArchaeologySessions(prev => prev.filter(s => s.id !== sessionId))
+    if (activeArchaeologyId === sessionId) {
+      setActiveArchaeologyId(null)
+    }
+  }, [setArchaeologySessions, activeArchaeologyId, setActiveArchaeologyId])
 
   const switchProject = useCallback((projectId) => {
     setActiveProject(projectId)
@@ -937,7 +1015,6 @@ export function LabProvider({ children }) {
     // 向后兼容的方法
     updateDocument,
     addDocument,
-    switchProject,
     openDocument,
     toggleDecisionStatus,
     getProjectHealth,
@@ -949,18 +1026,7 @@ export function LabProvider({ children }) {
     clearDocumentConflicts,
     auditFullProject,
     switchLabMode,
-    setActiveDocId,
     setActiveHeadingId,
-    setRecentDocuments,
-    setLabMode,
-    setArchaeologySessions,
-    setActiveArchaeologyId,
-    setCurrentSessionId,
-    setAllHistoryMessages,
-    setProjectMemories,
-    setDocumentConflicts,
-    setLabMessageToSend,
-    setAutoSendLabMessage,
     
     // 新增的向后兼容方法
     createArchaeologySession,
@@ -972,6 +1038,13 @@ export function LabProvider({ children }) {
     auditConstitutionVsPRD,
     navigateToDoc,
     switchExpertMode,
+    
+    // 链路 B/C 归档方法
+    appendContentToDocument,
+    highlightNodeAfterRender,
+    addDocumentToCategory,
+    archiveToProject,
+    deleteArchaeologySession,
     
     // Helper functions
     findNodeById: (id) => findNodeById(state.projectTree, id),
