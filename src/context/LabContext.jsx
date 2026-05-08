@@ -4,6 +4,7 @@ import { syncAllBacklinks, extractReferencedIds } from '../utils/linkParser'
 import { getForcedCategory, TEMPLATES } from '../config/templates'
 import { autoGenerateOutline } from '../utils/outlineGenerator'
 import { migrateProjectTreeIfNeeded } from '../utils/projectTreeMigration'
+import { archaeologyStore } from '../utils/dataStore'
 
 const LabContext = createContext(null)
 
@@ -497,10 +498,11 @@ export function LabProvider({ children }) {
   const [constitution, setConstitution] = useLocalStorage(STORAGE_KEYS.CONSTITUTION, '')
   const [recentDocuments, setRecentDocuments] = useLocalStorage('kairos-recent-documents', [])
   const [labMode, setLabMode] = useLocalStorage('kairos-lab-mode', 'live')
-  const [archaeologySessions, setArchaeologySessions] = useLocalStorage('kairos-archaeology-sessions', [])
+  const [archaeologySessions, setArchaeologySessions] = useState([])
   const [activeArchaeologyId, setActiveArchaeologyId] = useLocalStorage('kairos-active-archaeology-id', null)
   const [storedExpertMode, setStoredExpertMode] = useLocalStorage('kairos-expert-mode', 'pressure')
   const [allHistoryMessages, setAllHistoryMessages] = useLocalStorage('kairos-all-history-messages', {})
+  const [chatSessions, setChatSessions] = useLocalStorage('kairos-chat-sessions', {})
   const [currentSessionId, setCurrentSessionId] = useLocalStorage('kairos-current-session-id', null)
   const [projectMemories, setProjectMemories] = useLocalStorage('kairos-project-memories', {})
 
@@ -556,6 +558,12 @@ export function LabProvider({ children }) {
       setCurrentSessionId(newSessionId)
     }
   }, [currentSessionId, setCurrentSessionId])
+
+  // 从 archaeologyStore 加载考古会话
+  useEffect(() => {
+    const sessions = archaeologyStore.getAllSessions()
+    setArchaeologySessions(sessions)
+  }, [])
 
   // 辅助函数
   const activeProject = state.projectTree.find(p => p.id === state.activeProjectId) || state.projectTree[0]
@@ -720,8 +728,14 @@ export function LabProvider({ children }) {
   const addDocumentToCategory = useCallback((projectId, categoryType, docData) => {
     const project = state.projectTree.find(p => p.id === projectId)
     if (!project) return {}
-    const category = project.children?.find(c => c.categoryType === categoryType)
-    if (!category) return {}
+    const category = project.children?.find(c => c.categoryType === categoryType || c.id === categoryType)
+    if (!category) {
+      // 如果找不到指定的分类，使用第一个分类作为备选
+      const fallbackCategory = project.children?.[0]
+      if (!fallbackCategory) return {}
+      const docId = createDocument(fallbackCategory.id, docData)
+      return { newDocId: docId }
+    }
     const docId = createDocument(category.id, docData)
     return { newDocId: docId }
   }, [state.projectTree, createDocument])
@@ -736,11 +750,45 @@ export function LabProvider({ children }) {
   }, [addDocumentToCategory])
 
   const deleteArchaeologySession = useCallback((sessionId) => {
-    setArchaeologySessions(prev => prev.filter(s => s.id !== sessionId))
+    archaeologyStore.deleteSession(sessionId)
+    setArchaeologySessions(archaeologyStore.getAllSessions())
     if (activeArchaeologyId === sessionId) {
       setActiveArchaeologyId(null)
     }
-  }, [setArchaeologySessions, activeArchaeologyId, setActiveArchaeologyId])
+  }, [activeArchaeologyId, setActiveArchaeologyId])
+
+  // 考古会话 V2 方法
+  const createArchaeologySessionV2 = useCallback((name) => {
+    const session = archaeologyStore.createSession(name)
+    setArchaeologySessions(archaeologyStore.getAllSessions())
+    setActiveArchaeologyId(session.id)
+    return session
+  }, [setActiveArchaeologyId])
+
+  const addConversationChunk = useCallback((sessionId, content) => {
+    const chunk = archaeologyStore.addConversationChunk(sessionId, content)
+    setArchaeologySessions(archaeologyStore.getAllSessions())
+    return chunk
+  }, [])
+
+  const getMergedConversation = useCallback((sessionId) => {
+    return archaeologyStore.getMergedConversation(sessionId)
+  }, [])
+
+  const updateAnalysis = useCallback((sessionId, dimension, items) => {
+    archaeologyStore.updateAnalysis(sessionId, dimension, items)
+    setArchaeologySessions(archaeologyStore.getAllSessions())
+  }, [])
+
+  const updateItemStatus = useCallback((sessionId, dimension, itemId, status, editedContent) => {
+    archaeologyStore.updateItemStatus(sessionId, dimension, itemId, status, editedContent)
+    setArchaeologySessions(archaeologyStore.getAllSessions())
+  }, [])
+
+  const saveFinalReport = useCallback((sessionId, report) => {
+    archaeologyStore.saveFinalReport(sessionId, report)
+    setArchaeologySessions(archaeologyStore.getAllSessions())
+  }, [])
 
   const switchProject = useCallback((projectId) => {
     setActiveProject(projectId)
@@ -888,8 +936,16 @@ export function LabProvider({ children }) {
   const createArchaeologySession = useCallback((text) => {
     const session = {
       id: `arch_${Date.now()}`,
+      title: text.slice(0, 30) + (text.length > 30 ? '...' : ''),
+      rawText: text,
       text,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      analyzedAt: null,
+      timeline: [],
+      decisions: [],
+      blindSpots: [],
+      actionItems: [],
+      summary: null
     }
     setArchaeologySessions(prev => [...prev, session])
     setActiveArchaeologyId(session.id)
@@ -917,13 +973,81 @@ export function LabProvider({ children }) {
         }
       }
     })
-  }, [currentSessionId, state.activeProjectId, setAllHistoryMessages])
+    
+    setChatSessions(prev => {
+      const projectSessions = prev[state.activeProjectId] || []
+      const existingSession = projectSessions.find(s => s.id === currentSessionId)
+      
+      if (existingSession) {
+        return {
+          ...prev,
+          [state.activeProjectId]: projectSessions.map(s => 
+            s.id === currentSessionId 
+              ? { ...s, messageCount: (s.messageCount || 0) + 1, lastMessageAt: new Date().toISOString() }
+              : s
+          )
+        }
+      } else {
+        const newSession = {
+          id: currentSessionId,
+          title: message.content?.slice(0, 30) || '新对话',
+          createdAt: new Date().toISOString(),
+          lastMessageAt: new Date().toISOString(),
+          messageCount: 1
+        }
+        return {
+          ...prev,
+          [state.activeProjectId]: [newSession, ...projectSessions]
+        }
+      }
+    })
+  }, [currentSessionId, state.activeProjectId, setAllHistoryMessages, setChatSessions])
 
   const startNewSession = useCallback(() => {
     const newSessionId = `session_${Date.now()}`
     setCurrentSessionId(newSessionId)
+    setViewingHistorySessionId(null)
     return newSessionId
-  }, [setCurrentSessionId])
+  }, [setCurrentSessionId, setViewingHistorySessionId])
+
+  const deleteChatSession = useCallback((sessionId) => {
+    if (!state.activeProjectId) return
+    
+    setChatSessions(prev => {
+      const projectSessions = prev[state.activeProjectId] || []
+      return {
+        ...prev,
+        [state.activeProjectId]: projectSessions.filter(s => s.id !== sessionId)
+      }
+    })
+    
+    setAllHistoryMessages(prev => {
+      const projectMessages = prev[state.activeProjectId] || {}
+      const { [sessionId]: _, ...remainingMessages } = projectMessages
+      return {
+        ...prev,
+        [state.activeProjectId]: remainingMessages
+      }
+    })
+    
+    if (currentSessionId === sessionId) {
+      startNewSession()
+    }
+  }, [state.activeProjectId, setChatSessions, setAllHistoryMessages, currentSessionId, startNewSession])
+
+  const renameChatSession = useCallback((sessionId, newTitle) => {
+    if (!state.activeProjectId) return
+    
+    setChatSessions(prev => {
+      const projectSessions = prev[state.activeProjectId] || []
+      return {
+        ...prev,
+        [state.activeProjectId]: projectSessions.map(s => 
+          s.id === sessionId ? { ...s, title: newTitle } : s
+        )
+      }
+    })
+  }, [state.activeProjectId, setChatSessions])
 
   const summonMentor = useCallback((docId) => {
     console.log('summonMentor called for doc:', docId)
@@ -984,6 +1108,10 @@ export function LabProvider({ children }) {
     previousProjectId,
     allHistoryMessages,
     setAllHistoryMessages,
+    chatSessions,
+    setChatSessions,
+    deleteChatSession,
+    renameChatSession,
     currentSessionId,
     setCurrentSessionId,
     viewingHistorySessionId,
@@ -1045,6 +1173,14 @@ export function LabProvider({ children }) {
     addDocumentToCategory,
     archiveToProject,
     deleteArchaeologySession,
+    
+    // 考古会话 V2 方法
+    createArchaeologySessionV2,
+    addConversationChunk,
+    getMergedConversation,
+    updateAnalysis,
+    updateItemStatus,
+    saveFinalReport,
     
     // Helper functions
     findNodeById: (id) => findNodeById(state.projectTree, id),

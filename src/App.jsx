@@ -3,7 +3,7 @@ import LabPanel from './components/LabPanel'
 import ArchivePanel from './components/ArchivePanel'
 import Sidebar from './components/Sidebar'
 import ArchaeologySidebar from './components/ArchaeologySidebar'
-import ArchaeologyTimeline from './components/ArchaeologyTimeline'
+import ArchaeologyV2 from './components/ArchaeologyV2'
 import CommandPalette from './components/CommandPalette'
 import SettingsModal from './components/SettingsModal'
 import { store, initStore } from './utils/dataStore'
@@ -61,21 +61,10 @@ function AppContent() {
         >
           <Sidebar onSelectDoc={handleSelectDoc} />
         </div>
-        {isArchaeology && (
-          <div
-            className="h-full overflow-hidden flex-shrink-0 transition-all duration-300 ease-in-out border-r border-gray-100"
-            style={{
-              minWidth: 0,
-              width: sidebarCollapsed ? 40 : 180
-            }}
-          >
-            <ArchaeologySidebar compact />
-          </div>
-        )}
         <div className="flex-1 flex overflow-hidden gap-0 pr-6 pb-6 pt-6">
           <div className="flex-[5] overflow-hidden" style={{ minWidth: 0 }}>
             {isArchaeology && !activeDocId ? (
-              <ArchaeologyTimeline />
+              <ArchaeologyV2 />
             ) : (
               <ArchivePanel />
             )}

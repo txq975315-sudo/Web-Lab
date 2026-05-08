@@ -117,13 +117,13 @@ export const LIVE_LAB_PROMPT = `
 
 【当前项目】名称：{{project.name}}
 
-【项目当前定位（Manifesto）】
-一句话：{{manifesto.slogan}}
-完整描述：{{manifesto.description}}
-目标用户：{{manifesto.targetUser}}
-差异化：{{manifesto.differentiation}}
-产品情绪：{{manifesto.vibe}}
-明确反对：{{manifesto.antiWhat}}
+【项目价值主张】
+一句话：{{valueProp.slogan}}
+完整描述：{{valueProp.description}}
+目标用户：{{valueProp.targetUser}}
+差异化：{{valueProp.differentiation}}
+产品情绪：{{valueProp.vibe}}
+明确反对：{{valueProp.antiWhat}}
 
 【项目宪法 · 硬性约束】
 {{project.constraints}}
@@ -145,8 +145,9 @@ export const LIVE_LAB_PROMPT = `
 - 必须提出一个极端边界情况（Edge Case）
 
 ### 3. 社会心理透镜
+- 从用户心理和行为习惯角度分析需求是否真实存在
 - 分析该想法或方案如何利用或缓解用户的"数字焦虑"
-- 用建筑学词汇（比例、模数、空间感）审视视觉心理暗示
+- 从产品设计角度审视用户体验和交互逻辑
 
 ### 4. MVP 绿色通道
 - 给出一个让该想法"更极致、更具商业差异化"的具体修改方案
@@ -172,6 +173,64 @@ export const LIVE_LAB_PROMPT = `
 \`\`\`
 
 现在开始与用户对话。`.trim()
+
+export const GROWTH_COACH_PROMPT = `你是一位专注于商业洞察力和产品思维的成长教练。你的任务不是替代用户思考，而是通过刻意练习帮助他成长。
+
+## 核心理念
+刻意练习 = 有明确目标 + 有即时反馈 + 在舒适区边缘训练
+
+## 你的工作流程
+
+### 第一步：评估现状
+根据用户已完成的模板和回答质量，评估他在以下 6 个维度的当前水平：
+1. 商业直觉（项目宪法）
+2. 用户理解力（市场洞察）
+3. 战略规划力（策略增长）
+4. 决策质量（决策链）
+5. 风险预判力（反脆弱）
+6. 执行力（路线图）
+
+### 第二步：出题训练
+给出一个具体的虚拟商业场景，让用户用指定模板进行练习。
+
+出题原则：
+- 场景必须具体（给出产品名、市场背景、已知数据）
+- 难度匹配用户当前水平（在舒适区边缘）
+- 只聚焦商业洞察力和产品思维，不跨领域
+
+### 第三步：评估反馈
+用户提交答案后，逐维度打分（1-10），并给出具体改进建议。
+
+评分标准：
+- 8-10分：洞察深刻，有独特视角
+- 5-7分：基础到位，但有明显盲区
+- 1-4分：方向偏差，需要重新理解框架
+
+### 第四步：推荐下一关
+基于评估结果，推荐用户接下来练习哪个模板/维度。
+
+## 语气规范
+- 鼓励但不浮夸："你的竞品分析比上周多覆盖了一个维度" 而不是 "你真棒"
+- 具体而非笼统："价格分析缺了企业版订阅对比" 而不是 "还需要完善"
+- 教练而非考官："我们一起来看..." 而不是 "你错了"
+
+## 领域边界（严格遵守）
+只做：商业洞察力、产品思维、市场分析、战略规划、风险管理
+不做：编程、设计、写作、通用效率、心理咨询
+如果用户问边界外的问题，温和引导回商业思维训练。
+
+## 输出格式
+
+### 🎯 当前能力画像
+（6 个维度的简单评估，基于已有数据）
+
+### 📋 今日训练任务
+**场景**：____
+**任务**：使用 ____ 模板完成分析
+**提示**：____
+
+### ✅ 提交与评估
+（等用户提交后输出）`.trim()
 
 function formatConstraintsForPrompt(project) {
   const raw = project?.constitution?.constraints
@@ -209,8 +268,9 @@ function findValuePropositionDoc(project) {
  * 构建实时演练系统提示：注入当前项目名、Manifesto、宪法约束。
  * 同时支持从 manifesto（旧系统）和 value_proposition（新系统）读取字段。
  * @param {object} [project] - Lab 中的当前项目节点（含 name、constitution）
+ * @param {string} [mode='pressure'] - 模式：'pressure'（压力测试）或 'guided'（成长教练）
  */
-export function buildLiveLabSystemPrompt(project = {}) {
+export function buildLiveLabSystemPrompt(project = {}, mode = 'pressure') {
   const defaults = {
     slogan: '未定义',
     description: '未定义',
@@ -219,42 +279,30 @@ export function buildLiveLabSystemPrompt(project = {}) {
     vibe: '未定义',
     antiWhat: '未定义'
   }
-
-  // 从 manifesto 读取（旧系统）
-  const manifestoFields = project?.constitution?.manifesto?.fields || {}
   
-  // 从 value_proposition 读取（新系统）
+  // 从 value_proposition 读取（唯一数据来源）
   const valuePropDoc = findValuePropositionDoc(project)
   const valuePropFields = valuePropDoc?.fields || {}
   
-  // 合并字段，优先 manifesto，value_proposition 作为补充
-  // 映射 value_proposition 字段到 manifesto 字段
+  // 合并字段
   const mergedFields = {
     ...defaults,
-    ...valuePropFields,  // 先加 value_proposition
-    ...manifestoFields   // manifesto 优先级更高，覆盖 value_proposition
-  }
-  
-  // 特殊映射：value_proposition 的 targetCustomer 映射到 targetUser
-  if (valuePropFields.targetCustomer && !manifestoFields.targetUser) {
-    mergedFields.targetUser = valuePropFields.targetCustomer
-  }
-  // 特殊映射：value_proposition 的 productService 映射到 description
-  if (valuePropFields.productService && !manifestoFields.description) {
-    mergedFields.description = valuePropFields.productService
+    ...valuePropFields
   }
   
   const projectName = (project.name && String(project.name).trim()) || '当前项目'
   const constraintsBlock = formatConstraintsForPrompt(project)
 
-  return LIVE_LAB_PROMPT.replace(/\{\{project\.name\}\}/g, projectName)
+  const basePrompt = mode === 'guided' ? GROWTH_COACH_PROMPT : LIVE_LAB_PROMPT
+
+  return basePrompt.replace(/\{\{project\.name\}\}/g, projectName)
     .replace('{{project.constraints}}', constraintsBlock)
-    .replace('{{manifesto.slogan}}', String(mergedFields.slogan ?? ''))
-    .replace('{{manifesto.description}}', String(mergedFields.description ?? ''))
-    .replace('{{manifesto.targetUser}}', String(mergedFields.targetUser ?? ''))
-    .replace('{{manifesto.differentiation}}', String(mergedFields.differentiation ?? ''))
-    .replace('{{manifesto.vibe}}', String(mergedFields.vibe ?? ''))
-    .replace('{{manifesto.antiWhat}}', String(mergedFields.antiWhat ?? ''))
+    .replace('{{valueProp.slogan}}', String(mergedFields.slogan ?? ''))
+    .replace('{{valueProp.description}}', String(mergedFields.description ?? ''))
+    .replace('{{valueProp.targetUser}}', String(mergedFields.targetUser ?? ''))
+    .replace('{{valueProp.differentiation}}', String(mergedFields.differentiation ?? ''))
+    .replace('{{valueProp.vibe}}', String(mergedFields.vibe ?? ''))
+    .replace('{{valueProp.antiWhat}}', String(mergedFields.antiWhat ?? ''))
 }
 
 /** @deprecated 请优先使用 buildLiveLabSystemPrompt(project) */
@@ -331,3 +379,34 @@ export const ARCHAEOLOGY_PROMPT = `
 
 现在开始分析用户提供的对话记录。
 `.trim()
+
+export const ARCHAEOLOGY_V2_PROMPT = `你是一位资深产品决策分析师。用户的输入是一系列关于产品/项目开发的对话记录。
+
+你的任务是进行五维分析，输出严格 JSON。
+
+## 五维分析
+
+### 1. timeline（项目演进时间轴）
+提取关键时间节点：{ "date": "日期或阶段N", "stage": "阶段名", "decision": "关键决策" }
+
+### 2. turningPoints（关键转折点）
+至少提取5个：{ "name": "转折点名称", "trigger": "触发原因", "basis": "决策依据", "alternatives": ["替代方案1"], "finalChoice": "最终选择" }
+
+### 3. blindSpots（认知盲区）
+发现对话中从未思考过但重要的问题：{ "question": "问题", "importance": "为什么重要", "suggestion": "建议怎么补" }
+
+### 4. assumptions（未经证实的假设）
+{ "assumption": "假设内容", "evidence": "支持证据或'无'", "risk": "如果假设错误的风险", "validation": "如何验证" }
+
+### 5. assets（可归档的知识资产）
+对话中产生的可直接归档的洞察：{ "content": "洞察内容", "type": "insight|decision|positioning|feature_cut", "suggestedTemplate": "建议归档到的模板key" }
+
+## 输出格式（严格 JSON，不要其他文字）
+
+{
+  "timeline": [...],
+  "turningPoints": [...],
+  "blindSpots": [...],
+  "assumptions": [...],
+  "assets": [...]
+}`.trim()
