@@ -113,9 +113,11 @@ ${memoryText}
 }
 
 export const LIVE_LAB_PROMPT = `
-你是 Kairos 产品思维实验室的核心人工智能专家组。你同时具备硅谷顶级 CPO 的产品眼光、风险投资人的财务敏感度、以及建筑学家的审美秩序。
+你是 Thinking Lab 产品思维实验室的核心人工智能专家组。你同时具备硅谷顶级 CPO 的产品眼光、风险投资人的财务敏感度、以及建筑学家的审美秩序。
 
-【项目当前定位】
+【当前项目】名称：{{project.name}}
+
+【项目当前定位（Manifesto）】
 一句话：{{manifesto.slogan}}
 完整描述：{{manifesto.description}}
 目标用户：{{manifesto.targetUser}}
@@ -123,7 +125,10 @@ export const LIVE_LAB_PROMPT = `
 产品情绪：{{manifesto.vibe}}
 明确反对：{{manifesto.antiWhat}}
 
-当用户输入一个关于 Kairos App 的功能想法或商业设想时，你必须绕过表面的赞美，直接进行深度"压力测试"。
+【项目宪法 · 硬性约束】
+{{project.constraints}}
+
+当用户输入与「{{project.name}}」相关的功能想法、商业设想或产品决策讨论时，你必须绕过表面的赞美，直接进行深度"压力测试"。仅基于上文已给出的信息与用户本轮输入做推断；不要编造未出现的具体技术栈、平台或功能细节。
 
 **输出格式（严格执行，不得偏离）：**
 
@@ -135,12 +140,12 @@ export const LIVE_LAB_PROMPT = `
 - 提出一个让创业者"难受"的财务问题
 
 ### 2. 产品逻辑审计
-- 针对安卓端物理极限（屏幕尺寸、交互习惯）进行压力测试
-- 挑战该功能是否打破"12 专注位"带来的简单感
+- 结合上文「目标用户」「差异化」「明确反对」与「项目宪法 · 硬性约束」，对用户自述或已给出的平台、交互、数据与规模等**真实约束**做压力测试
+- 检验该想法是否会稀释核心差异化，或与「明确反对」、硬性约束相冲突
 - 必须提出一个极端边界情况（Edge Case）
 
 ### 3. 社会心理透镜
-- 分析此功能如何利用或缓解用户的"数字焦虑"
+- 分析该想法或方案如何利用或缓解用户的"数字焦虑"
 - 用建筑学词汇（比例、模数、空间感）审视视觉心理暗示
 
 ### 4. MVP 绿色通道
@@ -168,7 +173,44 @@ export const LIVE_LAB_PROMPT = `
 
 现在开始与用户对话。`.trim()
 
-export function buildSystemPrompt(manifestoFields = {}) {
+function formatConstraintsForPrompt(project) {
+  const raw = project?.constitution?.constraints
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return '（尚未录入硬性约束条目；请主要依据 Manifesto 与用户对话中的自述约束进行审计。）'
+  }
+  return raw
+    .map((item, i) => {
+      if (typeof item === 'string') return `${i + 1}. ${item}`
+      if (item && typeof item === 'object' && item.content != null) return `${i + 1}. ${String(item.content)}`
+      return `${i + 1}. ${JSON.stringify(item)}`
+    })
+    .join('\n')
+}
+
+/**
+ * 从项目树中查找 value_proposition 文档
+ */
+function findValuePropositionDoc(project) {
+  if (!project?.children) return null
+  
+  // 遍历分类找 value_proposition 文档
+  for (const category of project.children) {
+    if (!category?.children) continue
+    for (const doc of category.children) {
+      if (doc.docType === 'value_proposition' || doc.typeKey === 'value_proposition') {
+        return doc
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * 构建实时演练系统提示：注入当前项目名、Manifesto、宪法约束。
+ * 同时支持从 manifesto（旧系统）和 value_proposition（新系统）读取字段。
+ * @param {object} [project] - Lab 中的当前项目节点（含 name、constitution）
+ */
+export function buildLiveLabSystemPrompt(project = {}) {
   const defaults = {
     slogan: '未定义',
     description: '未定义',
@@ -178,15 +220,52 @@ export function buildSystemPrompt(manifestoFields = {}) {
     antiWhat: '未定义'
   }
 
-  const manifest = { ...defaults, ...manifestoFields }
+  // 从 manifesto 读取（旧系统）
+  const manifestoFields = project?.constitution?.manifesto?.fields || {}
+  
+  // 从 value_proposition 读取（新系统）
+  const valuePropDoc = findValuePropositionDoc(project)
+  const valuePropFields = valuePropDoc?.fields || {}
+  
+  // 合并字段，优先 manifesto，value_proposition 作为补充
+  // 映射 value_proposition 字段到 manifesto 字段
+  const mergedFields = {
+    ...defaults,
+    ...valuePropFields,  // 先加 value_proposition
+    ...manifestoFields   // manifesto 优先级更高，覆盖 value_proposition
+  }
+  
+  // 特殊映射：value_proposition 的 targetCustomer 映射到 targetUser
+  if (valuePropFields.targetCustomer && !manifestoFields.targetUser) {
+    mergedFields.targetUser = valuePropFields.targetCustomer
+  }
+  // 特殊映射：value_proposition 的 productService 映射到 description
+  if (valuePropFields.productService && !manifestoFields.description) {
+    mergedFields.description = valuePropFields.productService
+  }
+  
+  const projectName = (project.name && String(project.name).trim()) || '当前项目'
+  const constraintsBlock = formatConstraintsForPrompt(project)
 
-  return LIVE_LAB_PROMPT
-    .replace('{{manifesto.slogan}}', manifest.slogan)
-    .replace('{{manifesto.description}}', manifest.description)
-    .replace('{{manifesto.targetUser}}', manifest.targetUser)
-    .replace('{{manifesto.differentiation}}', manifest.differentiation)
-    .replace('{{manifesto.vibe}}', manifest.vibe)
-    .replace('{{manifesto.antiWhat}}', manifest.antiWhat)
+  return LIVE_LAB_PROMPT.replace(/\{\{project\.name\}\}/g, projectName)
+    .replace('{{project.constraints}}', constraintsBlock)
+    .replace('{{manifesto.slogan}}', String(mergedFields.slogan ?? ''))
+    .replace('{{manifesto.description}}', String(mergedFields.description ?? ''))
+    .replace('{{manifesto.targetUser}}', String(mergedFields.targetUser ?? ''))
+    .replace('{{manifesto.differentiation}}', String(mergedFields.differentiation ?? ''))
+    .replace('{{manifesto.vibe}}', String(mergedFields.vibe ?? ''))
+    .replace('{{manifesto.antiWhat}}', String(mergedFields.antiWhat ?? ''))
+}
+
+/** @deprecated 请优先使用 buildLiveLabSystemPrompt(project) */
+export function buildSystemPrompt(manifestoFields = {}) {
+  return buildLiveLabSystemPrompt({
+    name: '当前项目',
+    constitution: {
+      manifesto: { fields: manifestoFields },
+      constraints: []
+    }
+  })
 }
 
 export const ARCHAEOLOGY_PROMPT = `

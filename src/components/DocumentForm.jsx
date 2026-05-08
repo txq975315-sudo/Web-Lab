@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getTemplateFields, getTemplateLabel, getTemplateIcon, createDefaultFields } from '../config/templates'
+import { generateDocumentConfig } from '../config/documentGenerators'
 
 function FieldInput({ field, value, onChange }) {
   const baseInputClass = "w-full text-sm text-gray-700 py-2 transition-colors"
@@ -74,6 +75,7 @@ export default function DocumentForm({ doc, onSave, onCancel }) {
   const templateType = doc.docType || doc.typeKey || 'blank'
   const fields = getTemplateFields(templateType)
   const isBlank = templateType === 'blank'
+  const isExistingDoc = !!doc.id && doc.content
 
   const [title, setTitle] = useState(doc.name || doc.title || '')
   const [formFields, setFormFields] = useState(() => {
@@ -83,27 +85,96 @@ export default function DocumentForm({ doc, onSave, onCancel }) {
     return createDefaultFields(templateType)
   })
   const [blankContent, setBlankContent] = useState(doc.content || '')
+  const [aiGeneratedContent, setAiGeneratedContent] = useState(doc.content || '')
+  const [isLoading, setIsLoading] = useState(false)
+  const [questions, setQuestions] = useState([]) // 新增：追问列表
+  const [questionAnswers, setQuestionAnswers] = useState({}) // 新增：追问回答
 
   const handleFieldChange = (key, value) => {
     setFormFields(prev => ({ ...prev, [key]: value }))
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (isBlank) {
-      onSave({
-        name: title || '未命名文档',
-        content: blankContent,
-        fields: {},
-        docType: 'blank'
-      })
+  // ============================================================
+  // 【新增】追问处理函数
+  // ============================================================
+  const handleAskQuestions = () => {
+    const aiConfig = generateDocumentConfig(templateType, formFields, 'questions');
+    const questions = aiConfig.questions || [];
+    console.log('[追问] 生成的问题:', questions);
+    
+    if (questions.length > 0) {
+      setQuestions(questions);
+      alert('AI 追问生成成功！')
     } else {
-      onSave({
-        name: title || '未命名文档',
-        content: '',
-        fields: formFields,
-        docType: templateType
-      })
+      alert('没有需要追问的问题，你的字段已经填写得很清晰了！')
+    }
+  }
+
+  // ============================================================
+  // 【新增】追问回答处理
+  // ============================================================
+  const handleQuestionAnswerChange = (idx, value) => {
+    setQuestionAnswers(prev => ({ ...prev, [idx]: value }))
+  }
+
+  const handleRegenerateAI = async () => {
+    setIsLoading(true)
+    try {
+      const aiConfig = generateDocumentConfig(templateType, formFields);
+      
+      // 如果有追问回答，拼接到 userPrompt 中
+      let userPrompt = aiConfig.userPrompt
+      if (Object.keys(questionAnswers).length > 0) {
+        const answersText = Object.entries(questionAnswers)
+          .map(([idx, ans]) => ans ? `补充回答 ${parseInt(idx)+1}: ${ans}` : '')
+          .filter(t => t.length > 0)
+          .join('\n')
+        if (answersText) {
+          userPrompt += '\n\n【用户补充回答】\n' + answersText
+        }
+      }
+      
+      const { chatComplete } = await import('../utils/aiApi');
+      const aiContent = await chatComplete([
+        { role: 'system', content: aiConfig.systemPrompt },
+        { role: 'user', content: userPrompt }
+      ]);
+      console.log('[AI生成] 成功，内容长度:', aiContent.length);
+      setAiGeneratedContent(aiContent || '')
+      setQuestions([]) // 生成后自动收起追问面板
+      alert('AI 生成成功！')
+    } catch (err) {
+      console.error('[AI生成] 失败:', err.message);
+      alert('AI 生成失败: ' + err.message);
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (isLoading) return
+    
+    setIsLoading(true)
+    try {
+      if (isBlank) {
+        onSave({
+          name: title || '未命名文档',
+          content: blankContent,
+          fields: {},
+          docType: 'blank'
+        })
+      } else {
+        // 保存当前的 AI 内容（无论是新生成的还是用户编辑的）
+        onSave({
+          name: title || '未命名文档',
+          content: aiGeneratedContent || '',
+          fields: formFields,
+          docType: templateType
+        })
+      }
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -161,33 +232,168 @@ export default function DocumentForm({ doc, onSave, onCancel }) {
             />
           </div>
         ) : (
-          fields.map(field => (
-            <div key={field.key}>
-              <label className="text-xs text-gray-500 uppercase tracking-wider block mb-1.5">
-                {field.label}
-              </label>
-              <FieldInput
-                field={field}
-                value={formFields[field.key]}
-                onChange={handleFieldChange}
+          <>
+            {/* AI 生成内容编辑区（如果已有内容） */}
+            <div className="p-4 rounded-xl" style={{ backgroundColor: '#F5F3FF', border: '1px solid #DDD6FE' }}>
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-xs text-purple-600 uppercase tracking-wider font-semibold">
+                  ✨ AI 生成内容（可编辑）
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAskQuestions}
+                    disabled={isLoading}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
+                    style={{
+                      backgroundColor: isLoading ? '#D1FAE5' : '#10B981',
+                      color: 'white',
+                      cursor: isLoading ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {isLoading ? (
+                      <span className="flex items-center gap-1">
+                        <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        追问中...
+                      </span>
+                    ) : (
+                      <span>🔍 追问</span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRegenerateAI}
+                    disabled={isLoading}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
+                    style={{
+                      backgroundColor: isLoading ? '#E9D5FF' : '#A855F7',
+                      color: 'white',
+                      cursor: isLoading ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {isLoading ? (
+                      <span className="flex items-center gap-1">
+                        <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        生成中...
+                      </span>
+                    ) : (
+                      <span>🔄 重新生成 AI</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+              <textarea
+                value={aiGeneratedContent}
+                onChange={(e) => setAiGeneratedContent(e.target.value)}
+                placeholder="AI 生成的内容会显示在这里，你可以直接编辑..."
+                className="w-full min-h-[200px] text-sm leading-relaxed text-gray-700 p-3 rounded-lg resize-y"
+                style={{
+                  backgroundColor: 'white',
+                  border: '1px solid #C4B5FD',
+                  fontFamily: 'inherit',
+                  outline: 'none'
+                }}
+                onFocus={(e) => { e.target.style.borderColor = '#A855F7' }}
+                onBlur={(e) => { e.target.style.borderColor = '#C4B5FD' }}
               />
             </div>
-          ))
+
+            {/* ============================================================
+                【新增】AI 追问显示区域
+                ============================================================ */}
+            {questions.length > 0 && (
+              <div className="p-4 rounded-xl mt-4" style={{ backgroundColor: '#F0FDF4', border: '1px solid #A7F3D0' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-xs text-emerald-600 uppercase tracking-wider font-semibold">
+                    🤔 AI 追问 — 请确认以下问题
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setQuestions([])}
+                    className="px-2 py-1 text-xs font-medium rounded-lg transition-colors"
+                    style={{
+                      backgroundColor: '#D1FAE5',
+                      color: '#065F46',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    隐藏追问
+                  </button>
+                </div>
+                {questions.map((q, idx) => (
+                  <div key={idx} style={{ marginBottom: '12px', padding: '10px', background: '#ECFDF5', borderRadius: '8px' }}>
+                    <p style={{ margin: 0, marginBottom: '8px', fontWeight: 500, color: '#065F46', fontSize: '13px' }}>
+                      {idx + 1}. {q}
+                    </p>
+                    <input
+                      type="text"
+                      data-question={idx}
+                      value={questionAnswers[idx] || ''}
+                      onChange={(e) => handleQuestionAnswerChange(idx, e.target.value)}
+                      placeholder="（可选）补充你的想法..."
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        fontSize: '13px',
+                        border: '1px solid #A7F3D0',
+                        borderRadius: '6px',
+                        outline: 'none',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 原始表单字段 */}
+            <div className="mt-4">
+              <div className="text-xs text-gray-400 uppercase tracking-wider mb-3 pb-2 border-b border-gray-100">
+                📝 {isExistingDoc ? '原始字段' : '字段输入'}
+              </div>
+              {fields.map(field => (
+                <div key={field.key} className="mb-3">
+                  <label className="text-xs text-gray-500 uppercase tracking-wider block mb-1.5">
+                    {field.label}
+                  </label>
+                  <FieldInput
+                    field={field}
+                    value={formFields[field.key]}
+                    onChange={handleFieldChange}
+                  />
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
       <div className="flex items-center gap-2 pt-4 mt-2 border-t border-gray-100">
         <button
           type="submit"
-          className="text-xs px-4 py-2 rounded-lg font-medium text-white transition-all hover:scale-105 active:scale-95"
-          style={{ backgroundColor: '#8B5CF6' }}
+          disabled={isLoading}
+          className="text-xs px-4 py-2 rounded-lg font-medium text-white transition-all"
+          style={{ 
+            backgroundColor: isLoading ? '#C4B5FD' : '#8B5CF6',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            transform: isLoading ? 'none' : 'hover:scale-105 active:scale-95'
+          }}
         >
-          保存
+          {isLoading ? (
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              处理中...
+            </span>
+          ) : (
+            <span>保存</span>
+          )}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="text-xs px-4 py-2 rounded-lg font-medium text-gray-500 hover:bg-gray-100 transition-colors"
+          disabled={isLoading}
+          className="text-xs px-4 py-2 rounded-lg font-medium text-gray-500 transition-colors"
+          style={{ cursor: isLoading ? 'not-allowed' : 'pointer' }}
         >
           取消
         </button>
