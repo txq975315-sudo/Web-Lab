@@ -29,3 +29,25 @@ dist-ssr
 .env.development.local
 .env.test.local
 .env.production.local
+
+# ---- 勿提交：本地备份、PRD 包、笔记草稿（仍保留在你电脑里，仅从 Git 移除）----
+thinking-lab-backup*.json
+_prd.zip
+_prd_extract/
+
+# Trae / 本地草稿
+.trae/
+step.md
+Conflicts*
+Thinking_Lab_PRD_V2_*.md
+开发记录*.md
+开发日志*.md
+开发特定记录.md
+项目现状汇报.md
+思维训练工作台_PRD_*.docx
+
+# 与 public/backgrounds 重复的本地素材目录（可按需删本地文件夹）
+/backgrund picture/
+
+# 可选：Trae 等工具的上传缓存
+.uploads/
