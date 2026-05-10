@@ -10,7 +10,8 @@
  * 使用方式：
  *   import { MODULE_MAP, TEMPLATE_LIST } from './dataStore.js';
  *   文档与项目请以 LabContext 的 projectTree 为唯一真相（createProject / createDocument）。
- *   扁平结构 store.* CRUD 已废弃写入，仅保留兼容读取与考古 settings；勿在新代码中调用 store.createProject / store.createDocument。
+ *   扁平结构 store.* CRUD 已废弃写入；完整约定见 ../../docs/DATA_CONTRACT.md。
+ *   开发模式下若仍调用 store 的写入方法，将在控制台输出契约告警。
  */
 
 // ============================================================
@@ -82,6 +83,15 @@ function getModuleColor(moduleId) {
 
 const STORAGE_KEY = 'kairos-lab-data';
 const SETTINGS_KEY = 'kairos-lab-settings';
+
+/** 开发态：对仍写入扁平旧库的路径发出一次契约提醒（见 docs/DATA_CONTRACT.md） */
+function warnDeprecatedFlatStoreWrite(operation) {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
+    console.warn(
+      `[Thinking Lab][数据契约] store.${operation} 会写入 ${STORAGE_KEY}（扁平旧库），新功能已废弃此路径。请使用 LabContext：createProject / createDocument / saveDocument 等。详见 docs/DATA_CONTRACT.md`
+    )
+  }
+}
 
 function _readStorage(key, fallback = {}) {
   try {
@@ -259,6 +269,7 @@ const store = {
   },
 
   createProject(name, description) {
+    warnDeprecatedFlatStoreWrite('createProject')
     const data = this._getData();
     const project = _createProject(name, description);
     data.projects.push(project);
@@ -269,6 +280,7 @@ const store = {
   },
 
   setActiveProject(projectId) {
+    warnDeprecatedFlatStoreWrite('setActiveProject')
     const data = this._getData();
     data.activeProjectId = projectId;
     this._saveData(data);
@@ -291,6 +303,7 @@ const store = {
   },
 
   createDocument(projectId, docType, fields = {}, title = '') {
+    warnDeprecatedFlatStoreWrite('createDocument')
     const data = this._getData();
     if (!data.documents[projectId]) data.documents[projectId] = [];
     const doc = _createDocument(docType, fields, title);
@@ -300,6 +313,7 @@ const store = {
   },
 
   updateDocument(projectId, docId, updates) {
+    warnDeprecatedFlatStoreWrite('updateDocument')
     const data = this._getData();
     const docs = data.documents[projectId] || [];
     const idx = docs.findIndex(d => d.id === docId);
@@ -314,6 +328,7 @@ const store = {
   },
 
   deleteDocument(projectId, docId) {
+    warnDeprecatedFlatStoreWrite('deleteDocument')
     const data = this._getData();
     if (!data.documents[projectId]) return false;
     data.documents[projectId] = data.documents[projectId].filter(d => d.id !== docId);
@@ -323,6 +338,7 @@ const store = {
 
   // --- 宪法相关 ---
   addConstraint(projectId, content, rationale = '') {
+    warnDeprecatedFlatStoreWrite('addConstraint')
     const data = this._getData();
     const proj = data.projects.find(p => p.id === projectId);
     if (!proj) return null;
@@ -333,6 +349,7 @@ const store = {
   },
 
   addGraveyardItem(projectId, idea, reason) {
+    warnDeprecatedFlatStoreWrite('addGraveyardItem')
     const data = this._getData();
     const proj = data.projects.find(p => p.id === projectId);
     if (!proj) return null;

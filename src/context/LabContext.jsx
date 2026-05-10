@@ -1,3 +1,7 @@
+/**
+ * 项目树与文档的单一真相入口（持久化：kairos-project-tree）。
+ * 数据读写契约见仓库根目录 docs/DATA_CONTRACT.md — 新业务禁止写入 dataStore 扁平 store。
+ */
 import React, { createContext, useContext, useReducer, useEffect, useState, useCallback } from 'react'
 import { useLocalStorage, STORAGE_KEYS } from '../hooks/useLocalStorage'
 import { syncAllBacklinks, extractReferencedIds } from '../utils/linkParser'

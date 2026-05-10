@@ -78,6 +78,8 @@ npm run test     # 单元测试（Vitest）
 
 应用支持在「设置」中导出/导入工作台 JSON；跨浏览器或 Trae 预览与本地 Chrome 的存储相互隔离属正常现象。
 
+**数据层契约（开发必读）：** 见 [`docs/DATA_CONTRACT.md`](docs/DATA_CONTRACT.md)（项目树为唯一真相、扁平旧库勿用于新功能）。
+
 ## 许可证
 
 私有项目或未指定许可证时，请勿擅自对外再分发；如需开源请补充 `LICENSE`。
