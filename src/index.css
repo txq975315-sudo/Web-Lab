@@ -46,6 +46,20 @@
   }
 }
 
+@layer components {
+  /** 成长教练 / AI 结构化正文容器（Markdown）；正文色对齐 PRD #1a2a3a */
+  .coach-md {
+    color: #1a2a3a;
+  }
+
+  /** 类似参考稿：浅底卡片上的分层正文 */
+  .coach-md--surface {
+    background-color: #f5f5f0;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+  }
+}
+
 @layer utilities {
   .spacing-module-xs { padding: 4px; }
   .spacing-module-sm { padding: 8px; }

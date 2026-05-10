@@ -1,3 +1,5 @@
+import { STORAGE_KEYS } from "../config/storageKeys.js";
+
 const DEFAULT_CONFIG = {
   baseUrl: "https://openrouter.ai/api/v1",
   model: "deepseek/deepseek-chat"
@@ -5,18 +7,29 @@ const DEFAULT_CONFIG = {
 
 function getConfig() {
   try {
-    const saved = localStorage.getItem("kairos-ai-config");
+    const saved = localStorage.getItem(STORAGE_KEYS.AI_CONFIG);
     return saved ? JSON.parse(saved) : null;
   } catch {
     return null;
   }
 }
 
+/** 设置弹窗保存字段为 baseURL（与服务端习惯一致），此处兼容 baseUrl */
+function resolveStoredBaseUrl(config) {
+  if (!config) return null;
+  return config.baseURL ?? config.baseUrl ?? null;
+}
+
 function getApiUrl(config) {
+  const storedBase = resolveStoredBaseUrl(config);
   if (config?.provider === 'deepseek') {
-    return '/api/deepseek';
+    // 开发环境走 Vite 代理，避免浏览器直连 DeepSeek 的跨域问题
+    if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
+      return '/api/deepseek';
+    }
+    return storedBase || 'https://api.deepseek.com/v1';
   }
-  return config?.baseUrl || DEFAULT_CONFIG.baseUrl;
+  return storedBase || DEFAULT_CONFIG.baseUrl;
 }
 
 function handleHttpError(status) {
@@ -51,16 +64,21 @@ export async function streamChat(messages, onChunk, onDone, onError) {
       headers["X-Title"] = "Kairos Thinking Lab";
     }
 
-    const response = await fetch(`${apiUrl}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: config.model || DEFAULT_CONFIG.model,
-        messages,
-        stream: true,
-        temperature: 0.3
-      })
-    });
+    let response;
+    try {
+      response = await fetch(`${apiUrl}/chat/completions`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: config.model || DEFAULT_CONFIG.model,
+          messages,
+          stream: true,
+          temperature: 0.3
+        })
+      });
+    } catch (err) {
+      throw mapFetchFailure(err);
+    }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
@@ -93,8 +111,21 @@ export async function streamChat(messages, onChunk, onDone, onError) {
     }
     onDone?.(fullText);
   } catch (error) {
-    onError?.(error.message || "调用失败");
+    const raw = error?.message || '';
+    const msg =
+      raw === 'Failed to fetch' || error?.name === 'TypeError'
+        ? mapFetchFailure(error).message
+        : raw || '调用失败';
+    onError?.(msg);
   }
+}
+
+function mapFetchFailure(err) {
+  const isDev = typeof import.meta !== 'undefined' && import.meta.env?.DEV;
+  const hint = isDev
+    ? '无法连接 API（网络或被拦截）。使用 DeepSeek 时请用 npm run dev 启动以启用 /api/deepseek 代理；或到设置切换为 OpenRouter 并检查 Key。'
+    : '无法连接 API。预览/构建产物无开发代理，请在设置中使用 OpenRouter 等可直接访问的端点，或自行配置同源反向代理。';
+  return new Error(hint);
 }
 
 export async function chatComplete(messages) {
@@ -112,16 +143,21 @@ export async function chatComplete(messages) {
     headers["X-Title"] = "Kairos Thinking Lab";
   }
 
-  const response = await fetch(`${apiUrl}/chat/completions`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model: config.model || DEFAULT_CONFIG.model,
-      messages,
-      stream: false,
-      temperature: 0.3
-    })
-  });
+  let response;
+  try {
+    response = await fetch(`${apiUrl}/chat/completions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: config.model || DEFAULT_CONFIG.model,
+        messages,
+        stream: false,
+        temperature: 0.3
+      })
+    });
+  } catch (err) {
+    throw mapFetchFailure(err);
+  }
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));

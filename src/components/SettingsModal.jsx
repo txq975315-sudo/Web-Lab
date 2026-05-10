@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
+import { useLab } from '../context/LabContext'
+import { STORAGE_KEYS } from '../config/storageKeys.js'
 import { downloadLabDataExport, importLabDataFromJson } from '../utils/labDataSync'
 
-const STORAGE_KEY = 'kairos-ai-config'
+const STORAGE_KEY = STORAGE_KEYS.AI_CONFIG
 
 const PROVIDERS = {
   openrouter: {
@@ -40,6 +42,7 @@ function saveConfig(config) {
 }
 
 export default function SettingsModal({ isOpen, onClose }) {
+  const { migrateLegacyFlatStore } = useLab()
   const importInputRef = useRef(null)
   const [provider, setProvider] = useState('openrouter')
   const [apiKey, setApiKey] = useState('')
@@ -110,6 +113,18 @@ export default function SettingsModal({ isOpen, onClose }) {
     }
     reader.onerror = () => window.alert('读取文件失败')
     reader.readAsText(file, 'utf-8')
+  }
+
+  const handleMigrateLegacyFlat = () => {
+    if (
+      !window.confirm(
+        '将从浏览器 localStorage 的早期扁平库（thinking-lab-legacy-flat-data）合并到左侧项目树。\n可多次执行，可能产生重复文档。\n是否继续？'
+      )
+    ) {
+      return
+    }
+    const r = migrateLegacyFlatStore()
+    window.alert(r.ok ? r.message : r.message)
   }
 
   if (!isOpen) return null
@@ -264,6 +279,15 @@ export default function SettingsModal({ isOpen, onClose }) {
                 style={{ border: '1px solid rgba(255, 255, 255, 0.2)' }}
               >
                 导入备份…
+              </button>
+              <button
+                type="button"
+                onClick={handleMigrateLegacyFlat}
+                className="px-3 py-2 text-xs font-medium rounded-lg text-amber-100/95 transition-colors hover:bg-white/10"
+                style={{ border: '1px solid rgba(251, 191, 36, 0.45)' }}
+                title="仅当你曾使用过早期扁平结构存储项目时使用"
+              >
+                合并旧版扁平库…
               </button>
             </div>
             <input

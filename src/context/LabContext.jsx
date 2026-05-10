@@ -1,16 +1,20 @@
 /**
- * 项目树与文档的单一真相入口（持久化：kairos-project-tree）。
+ * 项目树与文档的单一真相入口（持久化：`STORAGE_KEYS.PROJECT_TREE` → thinking-lab-project-tree）。
  * 数据读写契约见仓库根目录 docs/DATA_CONTRACT.md — 新业务禁止写入 dataStore 扁平 store。
  */
 import React, { createContext, useContext, useReducer, useEffect, useState, useCallback } from 'react'
 import { useLocalStorage, STORAGE_KEYS } from '../hooks/useLocalStorage'
 import { syncAllBacklinks, extractReferencedIds } from '../utils/linkParser'
-import { getForcedCategory, TEMPLATES } from '../config/templates'
+import { getForcedCategory, getProjectCategoryParentId, TEMPLATES } from '../config/templates'
 import { autoGenerateOutline } from '../utils/outlineGenerator'
 import { migrateProjectTreeIfNeeded } from '../utils/projectTreeMigration'
-import { archaeologyStore } from '../utils/dataStore'
+import { archaeologyStore, store } from '../utils/dataStore'
+import { summarizeLegacyFlat, normalizeFlatDocType } from '../utils/flatStoreMigration'
 
 const LabContext = createContext(null)
+
+/** 右栏 Lab 模式；localStorage 若被写成旧值或非字符串，统一回落避免白屏 */
+const VALID_LAB_MODES = new Set(['live', 'coach', 'archaeology'])
 
 // Module 到分类节点 ID 的映射表
 const MODULE_TO_CATEGORY_ID = {
@@ -496,19 +500,19 @@ function labReducer(state, action) {
 
 export function LabProvider({ children }) {
   // 使用 localStorage 持久化
-  const [activeLabTab, setActiveLabTab] = useLocalStorage('kairos-active-lab-tab', 'live')
-  const [storedActiveProjectId, setStoredActiveProjectId] = useLocalStorage('kairos-active-project', 'proj-1')
+  const [activeLabTab, setActiveLabTab] = useLocalStorage(STORAGE_KEYS.ACTIVE_LAB_TAB, 'live')
+  const [storedActiveProjectId, setStoredActiveProjectId] = useLocalStorage(STORAGE_KEYS.ACTIVE_PROJECT, 'proj-1')
   const [storedProjectTree, setStoredProjectTree] = useLocalStorage(STORAGE_KEYS.PROJECT_TREE, DEFAULT_PROJECT_TREE)
   const [constitution, setConstitution] = useLocalStorage(STORAGE_KEYS.CONSTITUTION, '')
-  const [recentDocuments, setRecentDocuments] = useLocalStorage('kairos-recent-documents', [])
-  const [labMode, setLabMode] = useLocalStorage('kairos-lab-mode', 'live')
+  const [recentDocuments, setRecentDocuments] = useLocalStorage(STORAGE_KEYS.RECENT_DOCUMENTS, [])
+  const [labMode, setLabMode] = useLocalStorage(STORAGE_KEYS.LAB_MODE, 'live')
   const [archaeologySessions, setArchaeologySessions] = useState([])
-  const [activeArchaeologyId, setActiveArchaeologyId] = useLocalStorage('kairos-active-archaeology-id', null)
-  const [storedExpertMode, setStoredExpertMode] = useLocalStorage('kairos-expert-mode', 'pressure')
-  const [allHistoryMessages, setAllHistoryMessages] = useLocalStorage('kairos-all-history-messages', {})
-  const [chatSessions, setChatSessions] = useLocalStorage('kairos-chat-sessions', {})
-  const [currentSessionId, setCurrentSessionId] = useLocalStorage('kairos-current-session-id', null)
-  const [projectMemories, setProjectMemories] = useLocalStorage('kairos-project-memories', {})
+  const [activeArchaeologyId, setActiveArchaeologyId] = useLocalStorage(STORAGE_KEYS.ACTIVE_ARCHAEOLOGY_ID, null)
+  const [storedExpertMode, setStoredExpertMode] = useLocalStorage(STORAGE_KEYS.EXPERT_MODE, 'pressure')
+  const [allHistoryMessages, setAllHistoryMessages] = useLocalStorage(STORAGE_KEYS.ALL_HISTORY_MESSAGES, {})
+  const [chatSessions, setChatSessions] = useLocalStorage(STORAGE_KEYS.CHAT_SESSIONS, {})
+  const [currentSessionId, setCurrentSessionId] = useLocalStorage(STORAGE_KEYS.CURRENT_SESSION_ID, null)
+  const [projectMemories, setProjectMemories] = useLocalStorage(STORAGE_KEYS.PROJECT_MEMORIES, {})
 
   const [standardizingIds, setStandardizingIds] = useState([])
   const [activeDocId, setActiveDocId] = useState(null)
@@ -569,13 +573,25 @@ export function LabProvider({ children }) {
     setArchaeologySessions(sessions)
   }, [])
 
-  // 兼容旧版：labMode / activeLabTab 曾误写为 practice，与 LabPanel（live | archaeology）不一致
+  // 兼容旧版 practice；非法类型或非允许值时回落为 live，避免渲染分支异常 / 白屏
   useEffect(() => {
-    if (labMode === 'practice') setLabMode('live')
+    if (
+      labMode === 'practice' ||
+      typeof labMode !== 'string' ||
+      !VALID_LAB_MODES.has(labMode)
+    ) {
+      setLabMode('live')
+    }
   }, [labMode, setLabMode])
 
   useEffect(() => {
-    if (activeLabTab === 'practice') setActiveLabTab('live')
+    if (
+      activeLabTab === 'practice' ||
+      typeof activeLabTab !== 'string' ||
+      !VALID_LAB_MODES.has(activeLabTab)
+    ) {
+      setActiveLabTab('live')
+    }
   }, [activeLabTab, setActiveLabTab])
 
   // 辅助函数
@@ -631,6 +647,65 @@ export function LabProvider({ children }) {
 
     return docId
   }
+
+  /**
+   * 将早期扁平库（LEGACY_FLAT_DATA）中的项目/文档合并进当前 projectTree（侧栏树）。
+   * 同一扁平项目 id 若已存在于树中则文档并入该项目，否则新建「迁移」前缀项目。
+   */
+  const migrateLegacyFlatStore = useCallback(() => {
+    const data = store._getData()
+    const summary = summarizeLegacyFlat(data)
+    if (summary.projectCount === 0) {
+      return { ok: false, message: '早期扁平库中没有任何项目' }
+    }
+    if (summary.docCount === 0) {
+      return { ok: false, message: '扁平库中有项目但没有任何文档可迁移' }
+    }
+
+    let projectsCreated = 0
+    let documentsMigrated = 0
+
+    for (const fp of data.projects) {
+      if (!fp || typeof fp.id !== 'string') continue
+
+      const existing = state.projectTree.find((p) => p.id === fp.id)
+      const targetProjectId = existing ? fp.id : (() => {
+        projectsCreated += 1
+        return createProject(`「迁移」${fp.name || '未命名项目'}`)
+      })()
+
+      const docs = data.documents?.[fp.id] || []
+      for (const d of docs) {
+        if (!d || typeof d !== 'object') continue
+        const dt = normalizeFlatDocType(d.docType)
+        const parentId = getProjectCategoryParentId(targetProjectId, dt)
+        createDocument(
+          parentId,
+          {
+            docType: dt,
+            typeKey: dt,
+            name: d.title || d.name || '未命名文档',
+            content: typeof d.content === 'string' ? d.content : '',
+            fields: d.fields && typeof d.fields === 'object' ? d.fields : {},
+            status: 'exploring',
+            createdAt: d.createdAt || new Date().toISOString(),
+            updatedAt: d.updatedAt || new Date().toISOString()
+          },
+          { trustParentId: true }
+        )
+        documentsMigrated += 1
+      }
+    }
+
+    const parts = [`已迁移 ${documentsMigrated} 篇文档`]
+    if (projectsCreated > 0) parts.push(`新建 ${projectsCreated} 个项目`)
+    return {
+      ok: true,
+      projectsCreated,
+      documentsMigrated,
+      message: parts.join('，')
+    }
+  }, [state.projectTree, createProject, createDocument])
 
   const saveDocument = (docId, updates) => {
     dispatch({
@@ -934,7 +1009,7 @@ export function LabProvider({ children }) {
   }, [state.projectTree, documentConflicts])
 
   const switchLabMode = useCallback((mode) => {
-    if (mode === 'archaeology' && labMode === 'live') {
+    if (mode === 'archaeology' && (labMode === 'live' || labMode === 'coach')) {
       setPreviousProjectId(state.activeProjectId)
     }
     if (mode === 'live' && labMode === 'archaeology') {
@@ -1144,6 +1219,7 @@ export function LabProvider({ children }) {
     dispatch,
     createProject,
     createDocument,
+    migrateLegacyFlatStore,
     saveDocument,
     selectDocument,
     setActiveDocId: selectDocument, // 向后兼容

@@ -14,6 +14,9 @@
  *   开发模式下若仍调用 store 的写入方法，将在控制台输出契约告警。
  */
 
+import { STORAGE_KEYS } from '../config/storageKeys.js'
+import { migrateLegacyLocalStorageKeys } from './migrateLegacyStorageKeys.js'
+
 // ============================================================
 // 1. 模块-模板映射（与 documentGenerators.js 严格对齐）
 // ============================================================
@@ -81,8 +84,8 @@ function getModuleColor(moduleId) {
 // 2. localStorage 读写
 // ============================================================
 
-const STORAGE_KEY = 'kairos-lab-data';
-const SETTINGS_KEY = 'kairos-lab-settings';
+const STORAGE_KEY = STORAGE_KEYS.LEGACY_FLAT_DATA
+const SETTINGS_KEY = STORAGE_KEYS.LEGACY_SETTINGS
 
 /** 开发态：对仍写入扁平旧库的路径发出一次契约提醒（见 docs/DATA_CONTRACT.md） */
 function warnDeprecatedFlatStoreWrite(operation) {
@@ -196,9 +199,9 @@ function _formatDate(iso) {
 // 3.5 树形结构持久化（统一数据层）
 // ============================================================
 
-const PROJECT_TREE_KEY = 'kairos-project-tree'
-const ACTIVE_PROJECT_KEY = 'kairos-active-project'
-const EXPERT_MODE_KEY = 'kairos-expert-mode'
+const PROJECT_TREE_KEY = STORAGE_KEYS.PROJECT_TREE
+const ACTIVE_PROJECT_KEY = STORAGE_KEYS.ACTIVE_PROJECT
+const EXPERT_MODE_KEY = STORAGE_KEYS.EXPERT_MODE
 
 // ============================================================
 // 4. Store API
@@ -390,11 +393,19 @@ const store = {
 // 5. 设置 API
 // ============================================================
 
+/**
+ * @deprecated 应用设置以设置页 `STORAGE_KEYS.AI_CONFIG` 为准；仅保留供极端旧数据读取，勿在新代码中调用 set。
+ */
 const settingsStore = {
   _read() {
     return _readStorage(SETTINGS_KEY, { apiKey: '', apiProvider: 'deepseek', model: '' });
   },
   _write(s) {
+    if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
+      console.warn(
+        `[Thinking Lab] settingsStore 已废弃（${SETTINGS_KEY}），请使用「设置」中的 ${STORAGE_KEYS.AI_CONFIG}。`
+      );
+    }
     _writeStorage(SETTINGS_KEY, s);
   },
   get() {
@@ -410,7 +421,8 @@ const settingsStore = {
 // ============================================================
 
 function initStore() {
-  // 唯一真相：kairos-project-tree（LabContext）。不再向 kairos-lab-data 写入种子数据，避免与侧边栏项目树分裂。
+  migrateLegacyLocalStorageKeys()
+  // 唯一真相：STORAGE_KEYS.PROJECT_TREE（LabContext）。不再向 LEGACY_FLAT_DATA 写入种子数据，避免与侧边栏项目树分裂。
   return store._getData();
 }
 
@@ -445,7 +457,7 @@ function _createArchaeologySession(name = '未命名考古') {
 // 考古会话 CRUD
 const archaeologyStore = {
   _read() {
-    const data = _readStorage('kairos-archaeology-sessions', { sessions: [] });
+    const data = _readStorage(STORAGE_KEYS.ARCHAEOLOGY_SESSIONS, { sessions: [] });
     // 确保 sessions 数组存在
     if (!data || !Array.isArray(data.sessions)) {
       return { sessions: [] };
@@ -453,7 +465,7 @@ const archaeologyStore = {
     return data;
   },
   _write(data) {
-    _writeStorage('kairos-archaeology-sessions', data);
+    _writeStorage(STORAGE_KEYS.ARCHAEOLOGY_SESSIONS, data);
   },
 
   createSession(name) {

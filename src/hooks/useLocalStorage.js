@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 
+export { STORAGE_KEYS } from '../config/storageKeys.js'
+
 export function useLocalStorage(key, initialValue) {
   const [storedValue, setStoredValue] = useState(() => {
     try {
@@ -20,11 +22,4 @@ export function useLocalStorage(key, initialValue) {
   }, [key, storedValue])
 
   return [storedValue, setStoredValue]
-}
-
-export const STORAGE_KEYS = {
-  CONSTITUTION: 'kairos-constitution',
-  ARCHIVES: 'kairos-archives',
-  ARCHAEOLOGY: 'kairos-archaeology',
-  PROJECT_TREE: 'kairos-project-tree'
 }

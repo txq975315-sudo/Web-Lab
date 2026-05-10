@@ -2,15 +2,15 @@ import { LabProvider, useLab } from './context/LabContext'
 import LabPanel from './components/LabPanel'
 import ArchivePanel from './components/ArchivePanel'
 import Sidebar from './components/Sidebar'
-import ArchaeologySidebar from './components/ArchaeologySidebar'
 import ArchaeologyV2 from './components/ArchaeologyV2'
 import CommandPalette from './components/CommandPalette'
 import SettingsModal from './components/SettingsModal'
 import { initStore } from './utils/dataStore'
 import { useState, useEffect } from 'react'
+import AppErrorBoundary from './components/AppErrorBoundary'
 
 function AppContent() {
-  const { setActiveDocId, sidebarCollapsed, setSidebarCollapsed, labMode, activeDocId } = useLab()
+  const { setActiveDocId, sidebarCollapsed, labMode, activeDocId } = useLab()
   const [showSettings, setShowSettings] = useState(false)
 
   const handleSelectDoc = (doc) => {
@@ -85,13 +85,15 @@ export default function App() {
   useEffect(() => {
     initStore()
     if (import.meta.env.DEV) {
-      console.debug('[Thinking Lab] init OK — 项目数据以 LabContext projectTree（kairos-project-tree）为准')
+      console.debug('[Thinking Lab] init OK — 项目数据以 LabContext projectTree（thinking-lab-project-tree）为准')
     }
   }, [])
 
   return (
     <LabProvider>
-      <AppContent />
+      <AppErrorBoundary>
+        <AppContent />
+      </AppErrorBoundary>
     </LabProvider>
   )
 }

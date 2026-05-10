@@ -1,22 +1,12 @@
 import { useLab } from '../context/LabContext'
+import { STORAGE_KEYS } from '../config/storageKeys.js'
 import { useState, useRef, useEffect } from 'react'
 import SelectionMenu from './SelectionMenu'
 import ChatHistorySidebar from './ChatHistorySidebar'
 import { streamChat, chatComplete } from '../utils/aiApi'
 import { buildLiveLabSystemPrompt, ARCHAEOLOGY_PROMPT } from '../config/aiPrompts'
-
-const BACKGROUNDS = [
-  '/backgrounds/bg-1.jpg',
-  '/backgrounds/bg-2.jpg',
-  '/backgrounds/bg-3.jpg',
-  '/backgrounds/bg-4.png'
-]
-
-function getDailyBackgroundIndex() {
-  const today = new Date()
-  const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24))
-  return dayOfYear % BACKGROUNDS.length
-}
+import GrowthCoachPanel from './growthCoach/GrowthCoachPanel'
+import { LAB_BACKGROUND_IMAGES, getLabBackgroundIndex } from '../config/labBackgrounds'
 
 function DragToolbar({ selectedText, position, onClose, messageId }) {
   const handleDragStart = (e) => {
@@ -88,7 +78,7 @@ function DragToolbar({ selectedText, position, onClose, messageId }) {
 }
 
 function LiveLab({ messages, setMessages, inputValue, setInputValue, handleTextSelect, historyMessages, viewingHistorySessionId, setViewingHistorySessionId, activeProjectId, saveMessageToHistory, setCurrentSessionId, currentSessionId }) {
-  const { projectTree } = useLab()
+  const { projectTree, expertMode } = useLab()
   const messagesRef = useRef(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const activeProject = projectTree.find(p => p.id === activeProjectId)
@@ -97,7 +87,7 @@ function LiveLab({ messages, setMessages, inputValue, setInputValue, handleTextS
     e.preventDefault()
     if (!inputValue.trim() || isStreaming) return
 
-    const config = localStorage.getItem('kairos-ai-config')
+    const config = localStorage.getItem(STORAGE_KEYS.AI_CONFIG)
     if (!config) {
       alert('请先点击右上角 ⚙️ 设置 API Key')
       return
@@ -332,7 +322,7 @@ function ArchaeologyLab() {
   const handleScan = async () => {
     if (!pasteText.trim()) return
 
-    const config = localStorage.getItem('kairos-ai-config')
+    const config = localStorage.getItem(STORAGE_KEYS.AI_CONFIG)
     if (!config) {
       alert('请先点击右上角设置 API Key')
       return
@@ -564,7 +554,7 @@ function MemoryCard({ projectId, getMemorySummary }) {
 }
 
 export default function LabPanel() {
-  const { labMode, switchLabMode, projectTree, activeProjectId, allHistoryMessages, viewingHistorySessionId, setViewingHistorySessionId, saveMessageToHistory, startNewSession, expertMode, switchExpertMode, labMessageToSend, autoSendLabMessage, getMemorySummary, currentSessionId, setCurrentSessionId } = useLab()
+  const { labMode, switchLabMode, projectTree, activeProjectId, allHistoryMessages, viewingHistorySessionId, setViewingHistorySessionId, saveMessageToHistory, startNewSession, labMessageToSend, autoSendLabMessage, getMemorySummary, currentSessionId, setCurrentSessionId } = useLab()
   const [inputValue, setInputValue] = useState('')
   const [messages, setMessages] = useState([
     { id: 'seed-system', type: 'system', content: '欢迎来到 Thinking Lab，开始你的商业化思维练习吧！', time: '刚刚' },
@@ -579,13 +569,18 @@ export default function LabPanel() {
 
   const tabs = [
     { id: 'live', label: '实时演练' },
+    { id: 'coach', label: '成长教练' },
     { id: 'archaeology', label: '对话考古' }
   ]
 
-  const activeIndex = tabs.findIndex(t => t.id === labMode)
+  const rawIndex = tabs.findIndex(t => t.id === labMode)
+  const activeIndex = rawIndex >= 0 ? rawIndex : 0
 
-  const dailyBgIndex = getDailyBackgroundIndex()
-  const currentBg = BACKGROUNDS[dailyBgIndex]
+  const bgIndex = getLabBackgroundIndex()
+  const currentBg =
+    LAB_BACKGROUND_IMAGES.length > 0
+      ? LAB_BACKGROUND_IMAGES[bgIndex] || LAB_BACKGROUND_IMAGES[0]
+      : ''
 
   const handleTextSelect = () => {
     setTimeout(() => {
@@ -643,16 +638,9 @@ export default function LabPanel() {
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
-          backgroundColor: '#667eea'
+          backgroundColor: '#1e293b'
         }}
       >
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.75) 0%, rgba(118, 75, 162, 0.75) 50%, rgba(240, 147, 251, 0.7) 100%)'
-          }}
-        />
-
         <div className="relative flex justify-center pt-6 pb-4 z-10">
           <div
             className="relative flex items-center rounded-2xl"
@@ -661,7 +649,7 @@ export default function LabPanel() {
               backdropFilter: 'blur(10px)',
               boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
               padding: '3px',
-              width: '240px',
+              width: '300px',
               height: '30px'
             }}
           >
@@ -670,7 +658,7 @@ export default function LabPanel() {
               style={{
                 top: '3px',
                 left: '3px',
-                width: 'calc(50% - 3px)',
+                width: 'calc(33.333% - 2px)',
                 height: '24px',
                 backgroundColor: '#FFFFFF',
                 transform: `translateX(${activeIndex * 100}%)`,
@@ -694,42 +682,14 @@ export default function LabPanel() {
           </div>
         </div>
 
-        <div className="relative flex justify-center pb-2 z-10">
-          <div
-            className="flex items-center gap-1 rounded-lg px-2 py-1"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(8px)'
-            }}
-          >
-            <span className="text-[10px] text-white/60 mr-1">模式:</span>
-            <button
-              onClick={() => switchExpertMode('pressure')}
-              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
-                expertMode === 'pressure' 
-                  ? 'bg-purple-500 text-white' 
-                  : 'text-white/70 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              压力测试
-            </button>
-            <button
-              onClick={() => switchExpertMode('guided')}
-              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
-                expertMode === 'guided' 
-                  ? 'bg-emerald-500 text-white' 
-                  : 'text-white/70 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              成长教练
-            </button>
-          </div>
-        </div>
-
-        <MemoryCard projectId={activeProjectId} getMemorySummary={getMemorySummary} />
+        {labMode !== 'coach' && (
+          <MemoryCard projectId={activeProjectId} getMemorySummary={getMemorySummary} />
+        )}
 
         <div className="relative flex-1 flex flex-col overflow-hidden transition-opacity duration-200" style={{ opacity: 1 }}>
-          {labMode === 'live' ? (
+          {labMode === 'coach' ? (
+            <GrowthCoachPanel />
+          ) : labMode === 'live' ? (
             <LiveLab
               messages={messages}
               setMessages={setMessages}
@@ -759,7 +719,7 @@ export default function LabPanel() {
       </div>
 
       {/* 右侧历史记录侧边栏 - 只在实时演练模式显示 */}
-      {labMode === 'live' && <ChatHistorySidebar setMessages={setMessages} setInputValue={setInputValue} />}
+      {labMode === 'live' ? <ChatHistorySidebar setMessages={setMessages} setInputValue={setInputValue} /> : null}
     </div>
   )
 }

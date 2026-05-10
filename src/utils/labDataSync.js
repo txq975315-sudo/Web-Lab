@@ -1,42 +1,40 @@
 /**
  * Thinking Lab — 跨环境同步 localStorage（Chrome / Trae 内嵌预览等互不共享存储）
  *
- * 【维护约定】以下键须覆盖应用实际读写的全部 kairos-* 持久化项：
- * - LabContext.jsx → useLocalStorage(...)
- * - SettingsModal / aiApi → kairos-ai-config
- * - dataStore → kairos-lab-data、kairos-lab-settings、kairos-archaeology-sessions
+ * 【维护约定】以下键须覆盖应用实际读写的全部 thinking-lab-* 持久化项：
+ * - LabContext.jsx → useLocalStorage(STORAGE_KEYS.*)
+ * - SettingsModal / aiApi → STORAGE_KEYS.AI_CONFIG
+ * - dataStore → LEGACY_FLAT_DATA、LEGACY_SETTINGS、ARCHAEOLOGY_SESSIONS
  *
- * 新增 localStorage 键时：在此追加同一字符串 + 更新 docs/DATA_CONTRACT.md。
+ * 新增 localStorage 键时：在 config/storageKeys.js 定义 → 追加本文件 LAB_LOCAL_STORAGE_KEYS → 更新 docs/DATA_CONTRACT.md；
+ * 若需兼容旧备份 JSON，在 migrateLegacyStorageKeys.js 的 MIGRATION_PAIRS / LEGACY_IMPORT_ALIASES 中登记。
  */
 
+import { STORAGE_KEYS } from '../config/storageKeys.js'
+import { LEGACY_IMPORT_ALIASES } from './migrateLegacyStorageKeys.js'
+
 /** @type {readonly string[]} */
-export const LAB_LOCAL_STORAGE_KEYS = [
-  // dataStore：扁平旧库与考古
-  'kairos-lab-data',
-  'kairos-lab-settings',
-  'kairos-archaeology-sessions',
-
-  // LabContext：工作台状态
-  'kairos-active-lab-tab',
-  'kairos-active-project',
-  'kairos-project-tree',
-  'kairos-constitution',
-  'kairos-recent-documents',
-  'kairos-lab-mode',
-  'kairos-active-archaeology-id',
-  'kairos-expert-mode',
-  'kairos-all-history-messages',
-  'kairos-chat-sessions',
-  'kairos-current-session-id',
-  'kairos-project-memories',
-
-  // SettingsModal / aiApi
-  'kairos-ai-config',
-
-  // hooks/useLocalStorage STORAGE_KEYS 中的遗留键（旧版可能仍有数据，导入导出保留）
-  'kairos-archives',
-  'kairos-archaeology'
-]
+export const LAB_LOCAL_STORAGE_KEYS = Object.freeze([
+  STORAGE_KEYS.LEGACY_FLAT_DATA,
+  STORAGE_KEYS.LEGACY_SETTINGS,
+  STORAGE_KEYS.ARCHAEOLOGY_SESSIONS,
+  STORAGE_KEYS.ACTIVE_LAB_TAB,
+  STORAGE_KEYS.ACTIVE_PROJECT,
+  STORAGE_KEYS.PROJECT_TREE,
+  STORAGE_KEYS.CONSTITUTION,
+  STORAGE_KEYS.RECENT_DOCUMENTS,
+  STORAGE_KEYS.LAB_MODE,
+  STORAGE_KEYS.ACTIVE_ARCHAEOLOGY_ID,
+  STORAGE_KEYS.EXPERT_MODE,
+  STORAGE_KEYS.ALL_HISTORY_MESSAGES,
+  STORAGE_KEYS.CHAT_SESSIONS,
+  STORAGE_KEYS.CURRENT_SESSION_ID,
+  STORAGE_KEYS.PROJECT_MEMORIES,
+  STORAGE_KEYS.AI_CONFIG,
+  STORAGE_KEYS.GROWTH_SKILL_PROGRESS,
+  STORAGE_KEYS.ARCHIVES,
+  STORAGE_KEYS.ARCHAELOGY
+])
 
 const EXPORT_MARK = 'thinkingLabExport'
 const EXPORT_VERSION = 1
@@ -90,9 +88,10 @@ export function importLabDataFromJson(jsonText) {
   for (const key of LAB_LOCAL_STORAGE_KEYS) {
     window.localStorage.removeItem(key)
   }
-  for (const key of LAB_LOCAL_STORAGE_KEYS) {
-    if (!Object.prototype.hasOwnProperty.call(entries, key)) continue
-    const val = entries[key]
+  for (const rawKey of Object.keys(entries)) {
+    const key = LEGACY_IMPORT_ALIASES[rawKey] ?? rawKey
+    if (!LAB_LOCAL_STORAGE_KEYS.includes(key)) continue
+    const val = entries[rawKey]
     if (val === null || val === undefined) continue
     window.localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val))
   }
