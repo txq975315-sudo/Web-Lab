@@ -14,7 +14,7 @@ import { summarizeLegacyFlat, normalizeFlatDocType } from '../utils/flatStoreMig
 const LabContext = createContext(null)
 
 /** 右栏 Lab 模式；localStorage 若被写成旧值或非字符串，统一回落避免白屏 */
-const VALID_LAB_MODES = new Set(['live', 'coach', 'archaeology'])
+const VALID_LAB_MODES = new Set(['dashboard', 'live', 'coach', 'archaeology'])
 
 // Module 到分类节点 ID 的映射表
 const MODULE_TO_CATEGORY_ID = {
@@ -580,7 +580,7 @@ export function LabProvider({ children }) {
       typeof labMode !== 'string' ||
       !VALID_LAB_MODES.has(labMode)
     ) {
-      setLabMode('live')
+      setLabMode('dashboard')
     }
   }, [labMode, setLabMode])
 
@@ -1008,19 +1008,25 @@ export function LabProvider({ children }) {
     }
   }, [state.projectTree, documentConflicts])
 
-  const switchLabMode = useCallback((mode) => {
-    if (mode === 'archaeology' && (labMode === 'live' || labMode === 'coach')) {
-      setPreviousProjectId(state.activeProjectId)
-    }
-    if (mode === 'live' && labMode === 'archaeology') {
-      if (previousProjectId) {
-        setActiveProject(previousProjectId)
-        setPreviousProjectId(null)
+  const switchLabMode = useCallback(
+    (mode) => {
+      if (
+        mode === 'archaeology' &&
+        (labMode === 'live' || labMode === 'coach' || labMode === 'dashboard')
+      ) {
+        setPreviousProjectId(state.activeProjectId)
       }
-      setActiveArchaeologyId(null)
-    }
-    setLabMode(mode)
-  }, [labMode, previousProjectId, state.activeProjectId])
+      if (labMode === 'archaeology' && mode !== 'archaeology') {
+        if (previousProjectId) {
+          setActiveProject(previousProjectId)
+          setPreviousProjectId(null)
+        }
+        setActiveArchaeologyId(null)
+      }
+      setLabMode(mode)
+    },
+    [labMode, previousProjectId, state.activeProjectId, setActiveArchaeologyId, setLabMode]
+  )
 
   // 向后兼容：添加缺失的方法作为空实现
   const createArchaeologySession = useCallback((text) => {

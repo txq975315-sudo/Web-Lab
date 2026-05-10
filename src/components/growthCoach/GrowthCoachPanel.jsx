@@ -177,35 +177,37 @@ export default function GrowthCoachPanel() {
   }
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden">
+    <div className="wb-lab-bridge relative flex h-full flex-col overflow-hidden">
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
+        className="pointer-events-none absolute inset-0 opacity-[0.5]"
         style={{
-          backgroundImage: 'radial-gradient(circle at 20% 20%, #1a5f6e 0%, transparent 50%)'
+          background:
+            'radial-gradient(ellipse 120% 80% at 50% -20%, color-mix(in srgb, var(--wb-mint) 90%, transparent), transparent)',
         }}
       />
 
-      <div className="relative z-10 flex flex-1 flex-col overflow-hidden px-4 pb-4 pt-2">
-        <div className="mb-3 flex-shrink-0">
-          <h2 className="text-base font-semibold text-gray-800">成长教练 · P0</h2>
-          <p className="mt-1 text-xs text-gray-500">
-            模板：<span className="font-medium text-gray-700">竞品分析（{P0_TEMPLATE}）</span>
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden pb-4 pt-3">
+        <div className="wb-thread flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="mb-3 flex-shrink-0 px-6 md:px-8">
+          <h2 className="font-display text-base font-semibold text-lab-ink">成长教练 · P0</h2>
+          <p className="mt-1 text-xs text-lab-muted">
+            模板：<span className="font-medium text-lab-ink">竞品分析（{P0_TEMPLATE}）</span>
             {' · '}
-            方法论：<span className="font-medium" style={{ color: '#1a5f6e' }}>{methodologyName}</span>
+            方法论：<span className="font-medium" style={{ color: 'var(--color-accent-blue)' }}>{methodologyName}</span>
             {methodology?.hook && ` — ${methodology.hook}`}
           </p>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 w-full flex-1 overflow-y-auto">
           {step === 'intro' && (
-            <div className="mx-auto max-w-[480px] rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-              <p className="text-sm leading-relaxed text-gray-700">
+            <div className="w-full rounded-xl border border-lab-border-subtle bg-lab-overlay p-6 shadow-card md:p-8">
+              <p className="text-sm leading-relaxed text-lab-ink font-body">
                 本轮将走通：<strong>知识卡片 → 场景练习 → AI 评分 → 右侧实时演练追问</strong>
                 。内容会要求结合<strong>公开可查</strong>的行业事实、媒体报道与真实成败案例来理解 $APPEALS（模型无法实时上网，具体数字与引用请你务必自行交叉验证）。
                 请先确认右上角已配置 API Key。
               </p>
-              <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                <strong className="text-gray-800">和左侧项目的关系：</strong>
+              <p className="mt-3 text-sm leading-relaxed text-lab-muted font-body">
+                <strong className="text-lab-ink">和左侧项目的关系：</strong>
                 知识卡片里的真实案例、方法论，是在教<strong>通用打法</strong>，与左侧当前选哪个项目<strong>没有硬性绑定</strong>，你可以先当「行业课」来读。
                 进入<strong>场景练习</strong>后，题目正文里的<strong>己方</strong>应与<strong>左侧当前项目同名</strong>，<strong>竞品</strong>为 AI 指定的<strong>真实品牌</strong>——这样是在练框架：己方哪怕是早期概念名也可以。
                 完成一轮后可点<strong>「再来一轮」</strong>或练习里的<strong>「重新生成场景」</strong>换题继续练；不限一局。
@@ -213,8 +215,7 @@ export default function GrowthCoachPanel() {
               <button
                 type="button"
                 onClick={() => setStep('card')}
-                className="mt-6 w-full rounded-lg py-2.5 text-sm font-medium text-white"
-                style={{ backgroundColor: '#1a5f6e' }}
+                className="mt-6 w-full rounded-lab py-2.5 text-sm font-medium lab-btn-primary font-sans"
               >
                 开始：生成知识卡片
               </button>
@@ -222,7 +223,7 @@ export default function GrowthCoachPanel() {
           )}
 
           {step === 'card' && (
-            <div className="mx-auto">
+            <div className="w-full">
               <KnowledgeCard
                 data={cardData}
                 loading={cardLoading}
@@ -234,9 +235,9 @@ export default function GrowthCoachPanel() {
           )}
 
           {step === 'exercise' && (
-            <div className="mx-auto">
+            <div className="w-full">
               {exerciseLoading && !scenario && (
-                <div className="mb-2 text-xs text-gray-500">正在生成场景与预填…</div>
+                <div className="mb-2 text-xs text-lab-muted">正在生成场景与预填…</div>
               )}
               <ExerciseForm
                 scenario={scenario || '…'}
@@ -252,7 +253,7 @@ export default function GrowthCoachPanel() {
                 <button
                   type="button"
                   onClick={regenerateScenario}
-                  className="mt-2 w-full text-xs text-gray-500 underline"
+                  className="mt-2 w-full text-xs text-lab-muted underline hover:text-lab-accent-warm"
                 >
                   重新生成场景
                 </button>
@@ -261,7 +262,7 @@ export default function GrowthCoachPanel() {
           )}
 
           {step === 'feedback' && (
-            <div className="mx-auto space-y-4">
+            <div className="w-full space-y-4">
               <AIFeedbackPanel
                 feedback={feedback}
                 loading={scoreLoading}
@@ -270,12 +271,13 @@ export default function GrowthCoachPanel() {
               <button
                 type="button"
                 onClick={resetRound}
-                className="w-full rounded-lg border border-gray-200 py-2 text-sm text-gray-600"
+                className="w-full rounded-lab border border-lab-border-subtle py-2 text-sm text-lab-muted hover:bg-lab-accent-dim hover:text-lab-accent-warm"
               >
                 再来一轮
               </button>
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

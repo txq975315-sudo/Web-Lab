@@ -18,12 +18,12 @@ function ManifestoField({ field, value, onChange, isEditing }) {
   return (
     <div className="mb-5">
       <div className="flex items-center justify-between mb-2">
-        <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+        <label className="text-sm font-medium text-lab-ink flex items-center gap-1.5">
           {field.label}
-          {field.required && <span className="text-red-500">*</span>}
+          {field.required && <span className="text-lab-error">*</span>}
         </label>
         {(field.maxLength || isEditing) && (
-          <span className={`text-xs ${isOverLimit ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+          <span className={`text-xs ${isOverLimit ? 'text-lab-error font-medium' : 'text-lab-muted'}`}>
             {charCount}/{maxLength}
           </span>
         )}
@@ -40,7 +40,7 @@ function ManifestoField({ field, value, onChange, isEditing }) {
               className={`w-full px-3 py-2.5 text-sm border rounded-lg resize-none focus:outline-none focus:ring-2 transition-all ${
                 isOverLimit
                   ? 'border-red-300 focus:ring-red-200 bg-red-50'
-                  : 'border-gray-200 focus:ring-purple-200 focus:border-purple-400'
+                  : 'border-lab-border-subtle focus:ring-lab-accent focus:border-lab-accent'
               }`}
               style={{ minHeight: '100px', maxHeight: '200px' }}
             />
@@ -54,17 +54,17 @@ function ManifestoField({ field, value, onChange, isEditing }) {
               className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 transition-all ${
                 isOverLimit
                   ? 'border-red-300 focus:ring-red-200 bg-red-50'
-                  : 'border-gray-200 focus:ring-purple-200 focus:border-purple-400'
+                  : 'border-lab-border-subtle focus:ring-lab-accent focus:border-lab-accent'
               }`}
             />
           )}
           {isOverLimit && (
-            <p className="mt-1 text-xs text-red-500">⚠️ 已超过字数限制，请精简内容</p>
+            <p className="mt-1 text-xs text-lab-error">⚠️ 已超过字数限制，请精简内容</p>
           )}
         </>
       ) : (
-        <div className="px-3 py-2.5 bg-gray-50 rounded-lg text-sm text-gray-900 whitespace-pre-line min-h-[44px]">
-          {value || <span className="text-gray-400 italic">未填写</span>}
+        <div className="px-3 py-2.5 bg-lab-raised rounded-lg text-sm text-lab-ink whitespace-pre-line min-h-[44px]">
+          {value || <span className="text-lab-muted italic">未填写</span>}
         </div>
       )}
     </div>
@@ -79,10 +79,11 @@ function ManifestoVersionHistory({ versions, onRestore }) {
   }
 
   return (
-    <div className="mt-6 pt-4 border-t border-gray-200">
+    <div className="mt-6 pt-4 border-t border-lab-border-subtle">
       <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 w-full text-sm font-medium text-gray-700 hover:text-purple-700 transition-colors"
+        className="flex items-center gap-2 w-full text-sm font-medium text-lab-ink hover:text-lab-accent-warm transition-colors"
       >
         <svg
           width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -91,7 +92,7 @@ function ManifestoVersionHistory({ versions, onRestore }) {
           <path d="M9 6L15 12L9 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
         <span>版本历史</span>
-        <span className="text-xs text-gray-400">({versions.length} 个版本)</span>
+        <span className="text-xs text-lab-muted">({versions.length} 个版本)</span>
       </button>
 
       {expanded && (
@@ -99,32 +100,33 @@ function ManifestoVersionHistory({ versions, onRestore }) {
           {versions.map((version, index) => (
             <div
               key={index}
-              className="p-3 rounded-lg border border-gray-100 hover:border-purple-200 transition-colors"
+              className="p-3 rounded-lg border border-lab-border-subtle hover:border-lab-accent hover:bg-lab-accent-dim/50 transition-colors"
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-purple-600">
+                  <span className="text-xs font-semibold text-lab-accent-warm">
                     v{version.version || (versions.length - index)}
                   </span>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-lab-muted">
                     {new Date(version.timestamp).toLocaleString('zh-CN')}
                   </span>
                 </div>
                 {onRestore && (
                   <button
+                    type="button"
                     onClick={() => onRestore(index)}
-                    className="text-xs text-blue-600 hover:text-blue-800"
+                    className="text-xs text-lab-accent-blue hover:text-lab-accent-warm"
                   >
                     恢复此版本
                   </button>
                 )}
               </div>
               {version.changeReason && (
-                <p className="text-xs text-gray-500 mb-1">
+                <p className="text-xs text-lab-muted mb-1">
                   📝 {version.changeReason}
                 </p>
               )}
-              <div className="text-xs text-gray-600 space-y-1">
+              <div className="text-xs text-lab-muted space-y-1">
                 {Object.entries(version.fields || {}).slice(0, 2).map(([key, val]) => (
                   <div key={key}>
                     <span className="font-medium">{key}:</span>{' '}
@@ -219,16 +221,16 @@ function ManifestoDetail({ doc, onBack }) {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* 顶部导航栏 */}
-      <div className="px-6 pt-5 pb-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-white">
+      <div className="px-6 pt-5 pb-4 border-b border-lab-border-subtle bg-gradient-to-r from-lab-accent-dim to-lab-overlay">
         {/* 版本信息 */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-lab-accent-dim text-lab-accent-warm text-xs font-semibold border border-lab-border-subtle">
               <span>🎯</span>
               <span>核心定位</span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span className="px-1.5 py-0.5 bg-gray-100 rounded">v{currentVersion}</span>
+            <div className="flex items-center gap-2 text-xs text-lab-muted">
+              <span className="px-1.5 py-0.5 bg-lab-raised rounded border border-lab-border-subtle">v{currentVersion}</span>
               <span>·</span>
               <span>更新于 {new Date(lastUpdated).toLocaleDateString('zh-CN')}</span>
             </div>
@@ -239,24 +241,25 @@ function ManifestoDetail({ doc, onBack }) {
             {isEditing ? (
               <>
                 <button
+                  type="button"
                   onClick={() => setIsEditing(false)}
-                  className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg transition-colors"
+                  className="px-3 py-1.5 text-xs font-medium text-lab-muted hover:text-lab-ink border border-lab-border-subtle rounded-lg transition-colors hover:bg-lab-raised"
                 >
                   取消
                 </button>
                 <button
+                  type="button"
                   onClick={handleSave}
                   disabled={!localFields.slogan?.trim()}
-                  className="px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: '#8B5CF6' }}
+                  className="lab-btn-primary px-3 py-1.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none"
                 >
                   💾 保存
                 </button>
                 <button
+                  type="button"
                   onClick={handleSaveAndAudit}
                   disabled={!localFields.slogan?.trim()}
-                  className="px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                  style={{ backgroundColor: '#10B981' }}
+                  className="px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 bg-lab-success hover:opacity-92"
                 >
                   🔍 保存并审计
                 </button>
@@ -264,9 +267,9 @@ function ManifestoDetail({ doc, onBack }) {
             ) : (
               <>
                 <button
+                  type="button"
                   onClick={() => setIsEditing(true)}
-                  className="px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-all hover:scale-105"
-                  style={{ backgroundColor: '#8B5CF6' }}
+                  className="lab-btn-primary px-3 py-1.5 text-xs"
                 >
                   ✏️ 编辑定位
                 </button>
@@ -277,8 +280,8 @@ function ManifestoDetail({ doc, onBack }) {
 
         {/* Slogan 大字展示 */}
         {!isEditing && slogan && (
-          <div className="mb-4 p-4 bg-white rounded-xl border-2 border-purple-200 shadow-sm">
-            <p className="text-2xl font-bold text-center text-purple-900 leading-relaxed">
+          <div className="mb-4 p-4 bg-lab-overlay rounded-xl border-2 border-lab-accent-dim shadow-card">
+            <p className="text-2xl font-bold font-display text-center text-lab-ink leading-relaxed">
               "{slogan}"
             </p>
           </div>
@@ -336,19 +339,20 @@ function ManifestoDetail({ doc, onBack }) {
 
 function Breadcrumb({ items, onNavigate }) {
   return (
-    <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-4">
+    <div className="flex items-center gap-1.5 text-xs text-lab-muted mb-4">
       {items.map((item, index) => {
         const isLast = index === items.length - 1
         return (
           <div key={index} className="flex items-center gap-1.5">
-            {index > 0 && <span className="text-gray-300">/</span>}
+            {index > 0 && <span className="text-lab-border">/</span>}
             <button
+              type="button"
               onClick={() => !isLast && onNavigate(item.id)}
               disabled={isLast}
               className={`transition-colors ${
                 isLast
-                  ? 'text-gray-700 font-medium cursor-default'
-                  : 'hover:text-purple-600 cursor-pointer'
+                  ? 'text-lab-ink font-medium cursor-default'
+                  : 'hover:text-lab-accent-warm cursor-pointer'
               }`}
             >
               {item.icon && <span className="mr-0.5">{item.icon}</span>}
@@ -363,21 +367,34 @@ function Breadcrumb({ items, onNavigate }) {
 
 function StatusIndicator({ status, onToggle }) {
   const statusConfig = {
-    exploring: { color: '#FBBF24', label: '探索中' },
-    locked: { color: '#10B981', label: '已确定' },
-    rejected: { color: '#EF4444', label: '已否决' }
+    exploring: {
+      color: 'var(--color-warning)',
+      dim: 'var(--color-warning-dim)',
+      label: '探索中',
+    },
+    locked: {
+      color: 'var(--color-success)',
+      dim: 'var(--color-success-dim)',
+      label: '已确定',
+    },
+    rejected: {
+      color: 'var(--color-error)',
+      dim: 'var(--color-error-dim)',
+      label: '已否决',
+    },
   }
 
   const config = statusConfig[status] || statusConfig.exploring
 
   return (
     <button
+      type="button"
       onClick={(e) => {
         e.stopPropagation()
         if (onToggle) onToggle()
       }}
-      className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all hover:scale-105"
-      style={{ backgroundColor: `${config.color}15`, color: config.color }}
+      className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all hover:scale-105 border border-lab-border-subtle"
+      style={{ backgroundColor: config.dim, color: config.color }}
     >
       <span
         style={{
@@ -403,10 +420,11 @@ function EvidencePanel({ evidence, title = "证据链" }) {
   const neutral = evidence.filter(e => e.type === 'neutral')
 
   return (
-    <div className="mt-6 pt-4 border-t border-gray-200">
+    <div className="mt-6 pt-4 border-t border-lab-border-subtle">
       <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center justify-between w-full text-sm font-medium text-gray-700 hover:text-purple-700 transition-colors"
+        className="flex items-center justify-between w-full text-sm font-medium text-lab-ink hover:text-lab-accent-warm transition-colors"
       >
         <div className="flex items-center gap-2">
           <svg
@@ -416,11 +434,11 @@ function EvidencePanel({ evidence, title = "证据链" }) {
             <path d="M9 6L15 12L9 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
           <span>{title}</span>
-          <span className="text-xs text-gray-400">({evidence.length})</span>
+          <span className="text-xs text-lab-muted">({evidence.length})</span>
         </div>
         <div className="flex items-center gap-2 text-xs">
           {supporting.length > 0 && (
-            <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600">
+            <span className="px-1.5 py-0.5 rounded bg-[var(--color-success-dim)] text-lab-success border border-lab-border-subtle">
               {supporting.length} 👍
             </span>
           )}
@@ -451,9 +469,9 @@ function EvidencePanel({ evidence, title = "证据链" }) {
 
 function EvidenceCard({ evidence, type }) {
   const typeConfig = {
-    supporting: { bg: 'bg-emerald-50', border: 'border-emerald-200', icon: '👍' },
+    supporting: { bg: 'bg-[var(--color-success-dim)]', border: 'border-lab-success/30', icon: '👍' },
     challenging: { bg: 'bg-red-50', border: 'border-red-200', icon: '👎' },
-    neutral: { bg: 'bg-gray-50', border: 'border-gray-200', icon: '⚖️' }
+    neutral: { bg: 'bg-lab-raised', border: 'border-lab-border-subtle', icon: '⚖️' },
   }
 
   const config = typeConfig[type] || typeConfig.neutral
@@ -463,9 +481,9 @@ function EvidenceCard({ evidence, type }) {
       <div className="flex items-start gap-2">
         <span className="text-sm flex-shrink-0 mt-0.5">{config.icon}</span>
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-700">{evidence.content || evidence.text || ''}</p>
+          <p className="text-sm text-lab-ink">{evidence.content || evidence.text || ''}</p>
           {(evidence.source || evidence.date) && (
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-lab-muted mt-1">
               {evidence.source && <span>来源: {evidence.source}</span>}
               {evidence.source && evidence.date && <span> · </span>}
               {evidence.date && <span>{evidence.date}</span>}
@@ -485,10 +503,11 @@ function BacklinkPanel({ backlinks, references, allDocsMap, onNavigate }) {
   if (!hasBacklinks && !hasReferences) return null
 
   return (
-    <div className="mt-6 pt-4 border-t border-gray-200">
+    <div className="mt-6 pt-4 border-t border-lab-border-subtle">
       <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 w-full text-sm font-medium text-gray-700 hover:text-purple-700 transition-colors"
+        className="flex items-center gap-2 w-full text-sm font-medium text-lab-ink hover:text-lab-accent-warm transition-colors"
       >
         <svg
           width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -497,7 +516,7 @@ function BacklinkPanel({ backlinks, references, allDocsMap, onNavigate }) {
           <path d="M9 6L15 12L9 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
         <span>关联文档</span>
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-lab-muted">
           ({[...(backlinks || []), ...(references || [])].length})
         </span>
       </button>
@@ -505,7 +524,7 @@ function BacklinkPanel({ backlinks, references, allDocsMap, onNavigate }) {
       {expanded && (
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <p className="text-xs text-gray-500 mb-2 font-medium">← 被引用于</p>
+            <p className="text-xs text-lab-muted mb-2 font-medium">← 被引用于</p>
             {hasBacklinks ? (
               <div className="space-y-1.5">
                 {backlinks.map(blId => {
@@ -514,7 +533,7 @@ function BacklinkPanel({ backlinks, references, allDocsMap, onNavigate }) {
                     <button
                       key={blId}
                       onClick={() => blDoc && onNavigate && onNavigate(blId)}
-                      className="block w-full text-left text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1.5 rounded transition-colors truncate"
+                      className="block w-full text-left text-xs text-lab-accent-blue hover:text-lab-accent-warm hover:bg-lab-accent-dim px-2 py-1.5 rounded transition-colors truncate"
                     >
                       📄 {blDoc ? blDoc.name : blId}
                     </button>
@@ -522,12 +541,12 @@ function BacklinkPanel({ backlinks, references, allDocsMap, onNavigate }) {
                 })}
               </div>
             ) : (
-              <p className="text-xs text-gray-400 italic">暂无被引用记录</p>
+              <p className="text-xs text-lab-muted italic">暂无被引用记录</p>
             )}
           </div>
 
           <div>
-            <p className="text-xs text-gray-500 mb-2 font-medium">→ 引用了</p>
+            <p className="text-xs text-lab-muted mb-2 font-medium">→ 引用了</p>
             {hasReferences ? (
               <div className="space-y-1.5">
                 {references.map(refId => {
@@ -536,7 +555,7 @@ function BacklinkPanel({ backlinks, references, allDocsMap, onNavigate }) {
                     <button
                       key={refId}
                       onClick={() => refDoc && onNavigate && onNavigate(refId)}
-                      className="block w-full text-left text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1.5 rounded transition-colors truncate"
+                      className="block w-full text-left text-xs text-lab-accent-blue hover:text-lab-accent-warm hover:bg-lab-accent-dim px-2 py-1.5 rounded transition-colors truncate"
                     >
                       📄 {refDoc ? refDoc.name : refId}
                     </button>
@@ -544,7 +563,7 @@ function BacklinkPanel({ backlinks, references, allDocsMap, onNavigate }) {
                 })}
               </div>
             ) : (
-              <p className="text-xs text-gray-400 italic">暂无引用记录</p>
+              <p className="text-xs text-lab-muted italic">暂无引用记录</p>
             )}
           </div>
         </div>
@@ -662,10 +681,11 @@ export default function DocumentDetail({ doc, onBack, onSummonMentor }) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <p className="text-sm text-gray-400">未找到文档</p>
+          <p className="text-sm text-lab-muted">未找到文档</p>
           <button
+            type="button"
             onClick={onBack}
-            className="mt-3 text-xs text-purple-600 hover:text-purple-800"
+            className="mt-3 text-xs text-lab-accent-warm hover:text-lab-accent"
           >
             返回列表
           </button>
@@ -683,7 +703,7 @@ export default function DocumentDetail({ doc, onBack, onSummonMentor }) {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* 顶部导航栏 */}
-      <div className="px-6 pt-5 pb-3 border-b border-gray-100">
+      <div className="px-6 pt-5 pb-3 border-b border-lab-border-subtle">
         {/* 面包屑 */}
         <Breadcrumb
           items={buildBreadcrumbItems()}
@@ -698,17 +718,17 @@ export default function DocumentDetail({ doc, onBack, onSummonMentor }) {
                 type="text"
                 value={localTitle}
                 onChange={(e) => setLocalTitle(e.target.value)}
-                className="w-full text-xl font-bold text-gray-900 border-b-2 border-purple-400 focus:outline-none pb-1"
+                className="w-full text-xl font-bold font-display text-lab-ink border-b-2 border-lab-accent focus:outline-none pb-1"
                 autoFocus
               />
             ) : (
-              <h1 className="text-xl font-bold text-gray-900 truncate">
+              <h1 className="text-xl font-bold font-display text-lab-ink truncate">
                 {localTitle}
               </h1>
             )}
 
             <div className="flex items-center gap-2 mt-2">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-lab-accent-dim text-lab-accent-warm border border-lab-border-subtle">
                 {templateIcon}
                 {templateLabel}
               </span>
@@ -723,7 +743,7 @@ export default function DocumentDetail({ doc, onBack, onSummonMentor }) {
                 />
               )}
 
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-lab-muted">
                 更新于 {new Date(doc.updatedAt || Date.now()).toLocaleDateString('zh-CN')}
               </span>
             </div>
@@ -734,15 +754,16 @@ export default function DocumentDetail({ doc, onBack, onSummonMentor }) {
             {isEditing ? (
               <>
                 <button
+                  type="button"
                   onClick={() => setIsEditing(false)}
-                  className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg transition-colors"
+                  className="px-3 py-1.5 text-xs font-medium text-lab-muted hover:text-lab-ink border border-lab-border-subtle rounded-lg transition-colors hover:bg-lab-raised"
                 >
                   取消
                 </button>
                 <button
+                  type="button"
                   onClick={handleSave}
-                  className="px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-all hover:scale-105"
-                  style={{ backgroundColor: '#8B5CF6' }}
+                  className="lab-btn-primary px-3 py-1.5 text-xs"
                 >
                   保存
                 </button>
@@ -750,15 +771,16 @@ export default function DocumentDetail({ doc, onBack, onSummonMentor }) {
             ) : (
               <>
                 <button
+                  type="button"
                   onClick={() => setIsEditing(true)}
-                  className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg transition-colors"
+                  className="px-3 py-1.5 text-xs font-medium text-lab-muted hover:text-lab-ink border border-lab-border-subtle rounded-lg transition-colors hover:bg-lab-raised"
                 >
                   ✏️ 编辑
                 </button>
                 <button
+                  type="button"
                   onClick={handleSummonMentor}
-                  className="px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-all hover:scale-105 flex items-center gap-1"
-                  style={{ backgroundColor: '#10B981' }}
+                  className="px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-all hover:scale-105 flex items-center gap-1 bg-lab-success hover:opacity-92"
                 >
                   🧙 召唤导师
                 </button>
@@ -787,14 +809,14 @@ export default function DocumentDetail({ doc, onBack, onSummonMentor }) {
               /* Markdown/空白编辑 */
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-lab-ink mb-2">
                     文档内容
                   </label>
                   <textarea
                     value={localContent}
                     onChange={(e) => setLocalContent(e.target.value)}
                     placeholder="开始输入内容..."
-                    className="w-full h-96 p-4 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:border-purple-400"
+                    className="w-full h-96 p-4 text-sm border border-lab-border-subtle rounded-lg resize-none focus:outline-none focus:border-lab-accent focus:ring-2 focus:ring-lab-accent bg-lab-overlay text-lab-ink"
                   />
                 </div>
               </div>
@@ -805,17 +827,17 @@ export default function DocumentDetail({ doc, onBack, onSummonMentor }) {
           <div className="max-w-3xl mx-auto">
             {isStructured && doc.fields && Object.keys(doc.fields).length > 0 ? (
               /* 结构化字段展示 */
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                  <h3 className="text-sm font-semibold text-gray-700">{templateLabel} 字段</h3>
+              <div className="bg-lab-overlay rounded-lg border border-lab-border-subtle overflow-hidden shadow-card">
+                <div className="px-6 py-4 bg-lab-raised border-b border-lab-border-subtle">
+                  <h3 className="text-sm font-semibold font-display text-lab-ink">{templateLabel} 字段</h3>
                 </div>
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-lab-border-subtle">
                   {Object.entries(localFields).map(([key, value]) => (
                     <div key={key} className="px-6 py-4">
-                      <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                      <dt className="text-xs font-medium text-lab-muted uppercase tracking-wide mb-1">
                         {key.replace(/([A-Z])/g, ' $1').trim()}
                       </dt>
-                      <dd className="text-sm text-gray-900 whitespace-pre-line">
+                      <dd className="text-sm text-lab-ink whitespace-pre-line">
                         {value || '-'}
                       </dd>
                     </div>
@@ -828,10 +850,11 @@ export default function DocumentDetail({ doc, onBack, onSummonMentor }) {
             ) : (
               /* 空状态 */
               <div className="text-center py-20">
-                <p className="text-sm text-gray-400">该文档暂无内容</p>
+                <p className="text-sm text-lab-muted">该文档暂无内容</p>
                 <button
+                  type="button"
                   onClick={() => setIsEditing(true)}
-                  className="mt-3 text-xs text-purple-600 hover:text-purple-800"
+                  className="mt-3 text-xs text-lab-accent-warm hover:text-lab-accent"
                 >
                   开始编辑 →
                 </button>

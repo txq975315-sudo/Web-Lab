@@ -1,5 +1,17 @@
-import { getTemplateFields, getTemplateLabel, getTemplateIcon } from '../config/templates'
 import { useLab } from '../context/LabContext'
+
+/** 商业画布九格：用品牌 Token 的淡色区隔，避免蓝紫粉「通用 AI 风」 */
+const CANVAS_CELLS = [
+  { key: 'valueProposition', label: '价值主张', bg: 'rgba(106, 155, 204, 0.12)', border: 'rgba(106, 155, 204, 0.35)' },
+  { key: 'customerSegments', label: '客户细分', bg: 'rgba(201, 100, 66, 0.1)', border: 'rgba(201, 100, 66, 0.3)' },
+  { key: 'channels', label: '渠道通路', bg: 'rgba(192, 69, 58, 0.1)', border: 'rgba(192, 69, 58, 0.28)' },
+  { key: 'customerRelationships', label: '客户关系', bg: 'rgba(201, 148, 58, 0.12)', border: 'rgba(201, 148, 58, 0.32)' },
+  { key: 'revenueStreams', label: '收入来源', bg: 'rgba(120, 140, 93, 0.12)', border: 'rgba(120, 140, 93, 0.32)' },
+  { key: 'keyResources', label: '核心资源', bg: 'rgba(196, 185, 154, 0.2)', border: 'rgba(196, 185, 154, 0.45)' },
+  { key: 'keyActivities', label: '关键业务', bg: 'rgba(217, 119, 87, 0.1)', border: 'rgba(217, 119, 87, 0.3)' },
+  { key: 'keyPartners', label: '重要伙伴', bg: 'rgba(90, 137, 184, 0.1)', border: 'rgba(90, 137, 184, 0.3)' },
+  { key: 'costStructure', label: '成本结构', bg: 'rgba(245, 243, 236, 0.9)', border: 'rgba(216, 213, 204, 0.9)' },
+]
 
 function PersonaRenderer({ fields, docId }) {
   const safeFields = fields || {}
@@ -18,17 +30,11 @@ function PersonaRenderer({ fields, docId }) {
         <div
           key={item.key}
           id={`field-${docId}-${item.key}`}
-          className={item.span === 'full' ? 'col-span-2' : 'col-span-1'}
-          style={{
-            padding: '12px 14px',
-            borderRadius: '10px',
-            backgroundColor: '#FAFAFA',
-            border: '1px solid #F3F4F6'
-          }}
+          className={`${item.span === 'full' ? 'col-span-2' : 'col-span-1'} rounded-[10px] border border-lab-border-subtle bg-lab-raised p-3`}
         >
-          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">{item.label}</p>
-          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-            {item.value || <span className="text-gray-300">暂无</span>}
+          <p className="text-[10px] text-lab-faint uppercase tracking-wider mb-1.5">{item.label}</p>
+          <p className="text-sm text-lab-ink leading-relaxed whitespace-pre-line font-body">
+            {item.value || <span className="text-lab-faint">暂无</span>}
           </p>
         </div>
       ))}
@@ -38,33 +44,22 @@ function PersonaRenderer({ fields, docId }) {
 
 function CanvasRenderer({ fields, docId }) {
   const safeFields = fields || {}
-  const cells = [
-    { label: '价值主张', value: safeFields.valueProposition, color: '#EFF6FF', borderColor: '#BFDBFE', key: 'valueProposition' },
-    { label: '客户细分', value: safeFields.customerSegments, color: '#F5F3FF', borderColor: '#DDD6FE', key: 'customerSegments' },
-    { label: '渠道通路', value: safeFields.channels, color: '#FEF2F2', borderColor: '#FECACA', key: 'channels' },
-    { label: '客户关系', value: safeFields.customerRelationships, color: '#FFF7ED', borderColor: '#FED7AA', key: 'customerRelationships' },
-    { label: '收入来源', value: safeFields.revenueStreams, color: '#F0FDF4', borderColor: '#BBF7D0', key: 'revenueStreams' },
-    { label: '核心资源', value: safeFields.keyResources, color: '#FEFCE8', borderColor: '#FEF08A', key: 'keyResources' },
-    { label: '关键业务', value: safeFields.keyActivities, color: '#FDF2F8', borderColor: '#FBCFE8', key: 'keyActivities' },
-    { label: '重要伙伴', value: safeFields.keyPartners, color: '#F0F9FF', borderColor: '#BAE6FD', key: 'keyPartners' },
-    { label: '成本结构', value: safeFields.costStructure, color: '#F9FAFB', borderColor: '#E5E7EB', key: 'costStructure' }
-  ]
 
   return (
     <div className="grid grid-cols-3 gap-2.5">
-      {cells.map(cell => (
+      {CANVAS_CELLS.map((cell) => (
         <div
           key={cell.key}
           id={`field-${docId}-${cell.key}`}
           className="col-span-1 rounded-lg p-3"
           style={{
-            backgroundColor: cell.color,
-            border: `1px solid ${cell.borderColor}`
+            backgroundColor: cell.bg,
+            border: `1px solid ${cell.border}`,
           }}
         >
-          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">{cell.label}</p>
-          <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-line">
-            {cell.value || <span className="text-gray-300">—</span>}
+          <p className="text-[10px] text-lab-muted uppercase tracking-wider mb-1">{cell.label}</p>
+          <p className="text-xs text-lab-ink leading-relaxed whitespace-pre-line font-body">
+            {safeFields[cell.key] || <span className="text-lab-faint">—</span>}
           </p>
         </div>
       ))}
@@ -75,9 +70,9 @@ function CanvasRenderer({ fields, docId }) {
 function PRDRenderer({ fields, docId }) {
   const safeFields = fields || {}
   const priorityColor = {
-    'P0': { bg: '#FEF2F2', text: '#DC2626', border: '#FECACA' },
-    'P1': { bg: '#FFF7ED', text: '#EA580C', border: '#FED7AA' },
-    'P2': { bg: '#F0FDF4', text: '#16A34A', border: '#BBF7D0' }
+    P0: { bg: 'var(--color-error-dim)', text: 'var(--color-error)', border: 'color-mix(in srgb, var(--color-error) 35%, transparent)' },
+    P1: { bg: 'var(--color-warning-dim)', text: 'var(--color-warning)', border: 'color-mix(in srgb, var(--color-warning) 35%, transparent)' },
+    P2: { bg: 'var(--color-success-dim)', text: 'var(--color-success)', border: 'color-mix(in srgb, var(--color-success) 35%, transparent)' },
   }
 
   const items = [
@@ -91,28 +86,28 @@ function PRDRenderer({ fields, docId }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-[10px] text-gray-400 uppercase tracking-wider">优先级</span>
+        <span className="text-[10px] text-lab-faint uppercase tracking-wider">优先级</span>
         {safeFields.priority ? (
           <span
-            className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+            className="text-[10px] px-2 py-0.5 rounded-full font-semibold font-sans"
             style={{
-              backgroundColor: priorityColor[safeFields.priority]?.bg || '#F3F4F6',
-              color: priorityColor[safeFields.priority]?.text || '#6B7280',
-              border: `1px solid ${priorityColor[safeFields.priority]?.border || '#E5E7EB'}`
+              backgroundColor: priorityColor[safeFields.priority]?.bg || 'var(--color-bg-raised)',
+              color: priorityColor[safeFields.priority]?.text || 'var(--color-text-muted)',
+              border: `1px solid ${priorityColor[safeFields.priority]?.border || 'var(--color-border-subtle)'}`,
             }}
           >
             {safeFields.priority}
           </span>
         ) : (
-          <span className="text-xs text-gray-300">未设置</span>
+          <span className="text-xs text-lab-faint">未设置</span>
         )}
       </div>
 
       {items.map(item => (
         <div key={item.key} id={`field-${docId}-${item.key}`}>
-          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">{item.label}</p>
-          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-            {item.value || <span className="text-gray-300">暂无</span>}
+          <p className="text-[10px] text-lab-faint uppercase tracking-wider mb-1">{item.label}</p>
+          <p className="text-sm text-lab-ink leading-relaxed whitespace-pre-line font-body">
+            {item.value || <span className="text-lab-faint">暂无</span>}
           </p>
         </div>
       ))}
@@ -123,17 +118,17 @@ function PRDRenderer({ fields, docId }) {
 function DecisionRenderer({ fields, docId }) {
   const safeFields = fields || {}
   const confidenceColor = {
-    '高': { bg: '#F0FDF4', text: '#16A34A', border: '#BBF7D0' },
-    '中': { bg: '#FFF7ED', text: '#EA580C', border: '#FED7AA' },
-    '低': { bg: '#FEF2F2', text: '#DC2626', border: '#FECACA' }
+    高: { bg: 'var(--color-success-dim)', text: 'var(--color-success)', border: 'color-mix(in srgb, var(--color-success) 35%, transparent)' },
+    中: { bg: 'var(--color-warning-dim)', text: 'var(--color-warning)', border: 'color-mix(in srgb, var(--color-warning) 35%, transparent)' },
+    低: { bg: 'var(--color-error-dim)', text: 'var(--color-error)', border: 'color-mix(in srgb, var(--color-error) 35%, transparent)' },
   }
 
   return (
     <div>
       <div className="flex items-start justify-between mb-4" id={`field-${docId}-decisionContent`}>
         <div className="flex-1">
-          <p className="text-base font-semibold text-gray-800 leading-relaxed whitespace-pre-line">
-            {safeFields.decisionContent || <span className="text-gray-300 font-normal">暂无决策内容</span>}
+          <p className="text-base font-semibold font-display text-lab-ink leading-relaxed whitespace-pre-line">
+            {safeFields.decisionContent || <span className="text-lab-faint font-normal font-sans">暂无决策内容</span>}
           </p>
         </div>
         <div className="flex items-center gap-2 ml-4 flex-shrink-0">
@@ -141,31 +136,31 @@ function DecisionRenderer({ fields, docId }) {
             <span
               className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
               style={{
-                backgroundColor: confidenceColor[safeFields.confidence]?.bg || '#F3F4F6',
-                color: confidenceColor[safeFields.confidence]?.text || '#6B7280',
-                border: `1px solid ${confidenceColor[safeFields.confidence]?.border || '#E5E7EB'}`
+                backgroundColor: confidenceColor[safeFields.confidence]?.bg || 'var(--color-bg-raised)',
+                color: confidenceColor[safeFields.confidence]?.text || 'var(--color-text-muted)',
+                border: `1px solid ${confidenceColor[safeFields.confidence]?.border || 'var(--color-border-subtle)'}`,
               }}
             >
               置信度 {safeFields.confidence}
             </span>
           )}
           {safeFields.decisionDate && (
-            <span className="text-[10px] text-gray-400">{safeFields.decisionDate}</span>
+            <span className="text-[10px] text-lab-faint">{safeFields.decisionDate}</span>
           )}
         </div>
       </div>
 
       <div className="space-y-3">
         <div id={`field-${docId}-decisionBasis`}>
-          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">决策依据</p>
-          <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-line">
-            {safeFields.decisionBasis || <span className="text-gray-300">暂无</span>}
+          <p className="text-[10px] text-lab-faint uppercase tracking-wider mb-1">决策依据</p>
+          <p className="text-sm text-lab-muted leading-relaxed whitespace-pre-line font-body">
+            {safeFields.decisionBasis || <span className="text-lab-faint">暂无</span>}
           </p>
         </div>
         <div id={`field-${docId}-alternatives`}>
-          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">替代方案</p>
-          <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-line">
-            {safeFields.alternatives || <span className="text-gray-300">暂无</span>}
+          <p className="text-[10px] text-lab-faint uppercase tracking-wider mb-1">替代方案</p>
+          <p className="text-sm text-lab-muted leading-relaxed whitespace-pre-line font-body">
+            {safeFields.alternatives || <span className="text-lab-faint">暂无</span>}
           </p>
         </div>
       </div>
@@ -186,7 +181,7 @@ function SourceAnchor({ source, jumpToSource }) {
   return (
     <button
       onClick={() => jumpToSource(source)}
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-purple-500 hover:text-purple-600 hover:bg-purple-50 transition-colors ml-1"
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-lab-accent-warm hover:text-lab-accent hover:bg-lab-accent-dim transition-colors ml-1"
       title={`来源: ${source.timestamp}`}
     >
       <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -219,7 +214,7 @@ function BlankRenderer({ content, docId, jumpToSource }) {
   }
   
   if (!textContent && sources.length === 0) {
-    return <p className="text-sm text-gray-300">暂无内容</p>
+    return <p className="text-sm text-lab-faint font-body">暂无内容</p>
   }
 
   const lines = (textContent || '').split('\n')
@@ -232,7 +227,7 @@ function BlankRenderer({ content, docId, jumpToSource }) {
         if (h2Match) {
           const text = h2Match[1]
           return (
-            <h3 key={i} id={`heading-${docId}-${slugify(text)}`} className="text-sm font-semibold text-gray-800 mt-5 mb-2 pb-1 border-b border-gray-100">
+            <h3 key={i} id={`heading-${docId}-${slugify(text)}`} className="text-sm font-semibold font-display text-lab-ink mt-5 mb-2 pb-1 border-b border-lab-border-subtle">
               {text}
             </h3>
           )
@@ -242,7 +237,7 @@ function BlankRenderer({ content, docId, jumpToSource }) {
         if (h3Match) {
           const text = h3Match[1]
           return (
-            <h4 key={i} id={`heading-${docId}-${slugify(text)}`} className="text-xs font-semibold text-gray-700 mt-3 mb-1">
+            <h4 key={i} id={`heading-${docId}-${slugify(text)}`} className="text-xs font-semibold font-display text-lab-ink mt-3 mb-1">
               {text}
             </h4>
           )
@@ -250,21 +245,21 @@ function BlankRenderer({ content, docId, jumpToSource }) {
 
         if (line.startsWith('- ')) {
           return (
-            <li key={i} className="text-sm text-gray-600 ml-4 leading-relaxed">
+            <li key={i} className="text-sm text-lab-muted ml-4 leading-relaxed font-body">
               {line.replace(/^-\s*/, '')}
             </li>
           )
         }
 
         return (
-          <p key={i} className="text-sm leading-relaxed text-gray-600">
+          <p key={i} className="text-sm leading-relaxed text-lab-muted font-body">
             {line}
           </p>
         )
       })}
       
       {sources.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-1">
+        <div className="mt-4 pt-3 border-t border-lab-border-subtle flex flex-wrap gap-1">
           {sources.map((src, i) => (
             <SourceAnchor key={i} source={src} jumpToSource={jumpToSource} />
           ))}
@@ -279,7 +274,7 @@ export default function DocumentRenderer({ doc }) {
   
   // 安全检查
   if (!doc) {
-    return <div className="text-gray-400 text-sm">文档不存在</div>
+    return <div className="text-lab-muted text-sm font-body">文档不存在</div>
   }
   
   const templateType = doc.docType || doc.typeKey || 'blank'
@@ -309,9 +304,9 @@ export default function DocumentRenderer({ doc }) {
   return (
     <div>
       {doc.content && (
-        <div className="mb-6 pb-4 border-b border-gray-200">
+        <div className="mb-6 pb-4 border-b border-lab-border-subtle">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-[10px] text-purple-500 uppercase tracking-wider font-semibold">✨ AI 生成内容</span>
+            <span className="text-[10px] text-lab-accent-warm uppercase tracking-wider font-semibold font-sans">✨ AI 生成内容</span>
           </div>
           <BlankRenderer content={doc.content} docId={docId} jumpToSource={jumpToSource} />
         </div>

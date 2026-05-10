@@ -32,27 +32,27 @@ const MODULE_ORDER = [
 
 const MODULE_MAP = {
   '01 项目宪法': {
-    color: '#8B5CF6',
+    color: '#C96442',
     templates: ['constraint', 'graveyard']
   },
   '02 市场与用户洞察': {
-    color: '#3B82F6',
+    color: '#6A9BCC',
     templates: ['persona', 'journey_map', 'value_proposition', 'canvas', 'competitive_analysis', 'market_sizing']
   },
   '03 策略与增长': {
-    color: '#F59E0B',
+    color: '#D97757',
     templates: ['prd', 'gtm', 'growth_loop', 'north_star', 'unit_economics']
   },
   '04 决策链图谱': {
-    color: '#10B981',
+    color: '#788C5D',
     templates: ['decision_log', 'decision_review']
   },
   '05 反脆弱审计': {
-    color: '#EF4444',
+    color: '#C0453A',
     templates: ['premortem', 'moat', 'dependency_risk']
   },
   '06 执行路线图': {
-    color: '#6B7280',
+    color: '#6B6860',
     templates: ['mvp_scope', 'milestones', 'hypothesis_tracker', 'analytics_plan', 'resource_plan', 'action_items']
   }
 };
@@ -77,7 +77,7 @@ function getTemplatesByModule(moduleId) {
 }
 
 function getModuleColor(moduleId) {
-  return MODULE_MAP[moduleId]?.color || '#9CA3AF';
+  return MODULE_MAP[moduleId]?.color || '#B0AEA5';
 }
 
 // ============================================================

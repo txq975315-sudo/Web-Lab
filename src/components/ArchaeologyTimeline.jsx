@@ -37,10 +37,10 @@ function ArchiveIcon() {
 }
 
 const TIMELINE_NODE_TYPES = {
-  hypothesis: { label: '初始假设', color: '#8B5CF6', bg: '#F5F3FF' },
-  challenge: { label: '遭遇挑战', color: '#EF4444', bg: '#FEF2F2' },
-  revision: { label: '认知修正', color: '#F59E0B', bg: '#FFFBEB' },
-  conclusion: { label: '收敛结论', color: '#10B981', bg: '#ECFDF5' }
+  hypothesis: { label: '初始假设', color: 'var(--color-accent-warm)', bg: 'var(--color-accent-dim)' },
+  challenge: { label: '遭遇挑战', color: 'var(--color-error)', bg: 'var(--color-error-dim)' },
+  revision: { label: '认知修正', color: 'var(--color-warning)', bg: 'var(--color-warning-dim)' },
+  conclusion: { label: '收敛结论', color: 'var(--color-success)', bg: 'var(--color-success-dim)' },
 }
 
 const DIMENSION_LABELS = {
@@ -65,7 +65,7 @@ function TimelineNode({ node, isLast }) {
           </span>
         </div>
         {!isLast && (
-          <div className="w-px flex-1 min-h-[16px]" style={{ backgroundColor: '#E5E7EB' }} />
+          <div className="w-px flex-1 min-h-[16px]" style={{ backgroundColor: 'var(--color-border-default)' }} />
         )}
       </div>
 
@@ -79,20 +79,20 @@ function TimelineNode({ node, isLast }) {
             {config.label}
           </span>
           {node.dimension && (
-            <span className="text-[9px] text-gray-400">
+            <span className="text-[9px] text-lab-muted">
               {DIMENSION_LABELS[node.dimension] || node.dimension}
             </span>
           )}
         </div>
 
         {expanded && (
-          <div className="mt-2 ml-5 p-3 rounded-lg" style={{ backgroundColor: '#F9FAFB' }}>
+          <div className="mt-2 ml-5 p-3 rounded-lg border border-lab-border-subtle" style={{ backgroundColor: 'var(--color-bg-raised)' }}>
             {node.quote && (
-              <blockquote className="text-[11px] text-gray-500 italic border-l-2 border-gray-200 pl-2 mb-2">
+              <blockquote className="text-[11px] text-lab-muted italic border-l-2 border-lab-border pl-2 mb-2">
                 "{node.quote}"
               </blockquote>
             )}
-            <p className="text-[11px] text-gray-600">{node.summary}</p>
+            <p className="text-[11px] text-lab-ink">{node.summary}</p>
           </div>
         )}
       </div>
@@ -169,8 +169,13 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
   return (
     <div className="rounded-xl p-3" style={{ backgroundColor: bg, border: `1px solid ${borderColor}` }}>
       {archiveSuccess && (
-        <div className="mb-2 px-2 py-1.5 rounded-lg text-[10px] font-medium flex items-center gap-1.5"
-          style={{ backgroundColor: '#D1FAE5', color: '#065F46', border: '1px solid #A7F3D0' }}
+        <div
+          className="mb-2 px-2 py-1.5 rounded-lg text-[10px] font-medium flex items-center gap-1.5 border"
+          style={{
+            backgroundColor: 'var(--color-success-dim)',
+            color: 'var(--color-text-success)',
+            borderColor: 'var(--color-border-subtle)',
+          }}
         >
           ✅ 已归档到 <span className="font-semibold">{archiveSuccess.projectName}</span> → <span>{archiveSuccess.categoryName}</span>
         </div>
@@ -184,24 +189,25 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
           flexShrink: 0
         }} />
         {title}
-        <span className="text-[10px] font-normal ml-auto" style={{ color: '#9CA3AF' }}>
+        <span className="text-[10px] font-normal ml-auto text-lab-muted">
           {items.length}
         </span>
       </h4>
 
       {items.length === 0 && (
-        <p className="text-[10px] text-gray-400">暂无提取内容</p>
+        <p className="text-[10px] text-lab-muted">暂无提取内容</p>
       )}
 
       <div className="space-y-2">
         {items.map((item, i) => (
-          <div key={i} className="p-2 rounded-lg" style={{ backgroundColor: '#FFFFFF' }}>
-            <p className="text-[11px] text-gray-700 leading-relaxed">{item.text || item.decision || item.item || item.area || item.summary || '未提取到内容'}</p>
+          <div key={i} className="p-2 rounded-lg bg-lab-overlay border border-lab-border-subtle">
+            <p className="text-[11px] text-lab-ink leading-relaxed">{item.text || item.decision || item.item || item.area || item.summary || '未提取到内容'}</p>
             {item.rationale && (
-              <p className="text-[10px] text-gray-500 mt-1 italic">理由：{item.rationale}</p>
+              <p className="text-[10px] text-lab-muted mt-1 italic">理由：{item.rationale}</p>
             )}
             <div className="mt-1.5 flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => handleArchive(item)}
                 className="text-[10px] font-medium flex items-center gap-1 transition-colors hover:opacity-80"
                 style={{ color }}
@@ -215,11 +221,12 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
       </div>
 
       {showProjectPicker && (
-        <div className="mt-2 p-2 rounded-lg" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB' }}>
-          <p className="text-[10px] text-gray-400 mb-1.5">选择目标项目</p>
+        <div className="mt-2 p-2 rounded-lg bg-lab-overlay border border-lab-border-subtle">
+          <p className="text-[10px] text-lab-muted mb-1.5">选择目标项目</p>
           <div className="space-y-1 mb-2 max-h-24 overflow-y-auto">
             {projectTree.map(project => (
               <button
+                type="button"
                 key={project.id}
                 onClick={() => {
                   setSelectedProjectId(project.id)
@@ -228,8 +235,8 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
                 }}
                 className="w-full text-left px-2 py-1 rounded text-[11px] transition-colors"
                 style={{
-                  backgroundColor: selectedProjectId === project.id ? '#F3F4F6' : 'transparent',
-                  color: selectedProjectId === project.id ? '#111827' : '#6B7280'
+                  backgroundColor: selectedProjectId === project.id ? 'var(--color-accent-dim)' : 'transparent',
+                  color: selectedProjectId === project.id ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                 }}
               >
                 {project.name}
@@ -238,7 +245,7 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
           </div>
           {selectedProjectId && (
             <>
-              <p className="text-[10px] text-gray-400 mb-1">分类</p>
+              <p className="text-[10px] text-lab-muted mb-1">分类</p>
               <div className="relative mb-2">
                 <select
                   value={selectedCategory}
@@ -247,7 +254,7 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
                     setSelectedDocId(null)
                     setSelectedFieldKey(null)
                   }}
-                  className="w-full px-2 py-1 text-[10px] bg-gray-50 rounded-lg border-none outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer appearance-none"
+                  className="w-full px-2 py-1 text-[10px] bg-lab-raised rounded-lg border border-lab-border-subtle outline-none focus-visible:ring-2 focus-visible:ring-lab-accent cursor-pointer appearance-none text-lab-ink"
                   style={{ paddingRight: '20px' }}
                 >
                   {MODULE_CATEGORIES.map(cat => (
@@ -256,15 +263,16 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
                     </option>
                   ))}
                 </select>
-                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-lab-muted">
                   <ChevronDown />
                 </div>
               </div>
               
-              <p className="text-[10px] text-gray-400 mb-1">或直接归档到已有文档</p>
+              <p className="text-[10px] text-lab-muted mb-1">或直接归档到已有文档</p>
               <div className="space-y-1 mb-2 max-h-24 overflow-y-auto">
                 {getProjectDocs(selectedProjectId).slice(0, 10).map(doc => (
                   <button
+                    type="button"
                     key={doc.id}
                     onClick={() => {
                       setSelectedDocId(doc.id)
@@ -272,8 +280,8 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
                     }}
                     className="w-full text-left px-2 py-1 rounded text-[10px] transition-colors truncate"
                     style={{
-                      backgroundColor: selectedDocId === doc.id ? '#EDE9FE' : 'transparent',
-                      color: selectedDocId === doc.id ? '#7C3AED' : '#6B7280'
+                      backgroundColor: selectedDocId === doc.id ? 'var(--color-accent-dim)' : 'transparent',
+                      color: selectedDocId === doc.id ? 'var(--color-accent-warm)' : 'var(--color-text-secondary)',
                     }}
                   >
                     {doc.name || '未命名文档'}
@@ -284,6 +292,7 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
           )}
           <div className="flex gap-1.5 mt-2">
             <button
+              type="button"
               onClick={() => {
                 setShowProjectPicker(false)
                 setSelectedProjectId(null)
@@ -291,11 +300,12 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
                 setSelectedFieldKey(null)
                 setPendingItem(null)
               }}
-              className="flex-1 py-1 rounded text-[10px] text-gray-500 hover:bg-gray-100"
+              className="flex-1 py-1 rounded text-[10px] text-lab-muted hover:bg-lab-accent-dim"
             >
               取消
             </button>
             <button
+              type="button"
               onClick={() => {
                 if (pendingItem) {
                   if (selectedDocId) {
@@ -306,7 +316,7 @@ function ExtractionCard({ title, items, color, bg, borderColor, onArchive }) {
                   }
                 }
               }}
-              className="flex-1 py-1 rounded text-[10px] font-medium text-white"
+              className="flex-1 py-1 rounded text-[10px] font-medium text-[color:var(--color-text-inverted)]"
               style={{ backgroundColor: color }}
               disabled={!pendingItem || (!selectedProjectId && !selectedDocId)}
             >
@@ -328,8 +338,8 @@ export default function ArchaeologyTimeline() {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <p className="text-sm text-gray-400 mb-1">选择一个考古记录</p>
-          <p className="text-[11px] text-gray-300">或粘贴对话记录开始新的分析</p>
+          <p className="text-sm text-lab-muted mb-1">选择一个考古记录</p>
+          <p className="text-[11px] text-lab-faint">或粘贴对话记录开始新的分析</p>
         </div>
       </div>
     )
@@ -339,9 +349,9 @@ export default function ArchaeologyTimeline() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100 flex-shrink-0">
-        <h2 className="text-sm font-semibold text-gray-800">{session.title}</h2>
-        <p className="text-[10px] text-gray-400 mt-0.5">
+      <div className="px-6 py-4 border-b border-lab-border-subtle flex-shrink-0 bg-lab-overlay">
+        <h2 className="text-sm font-semibold font-display text-lab-ink">{session.title}</h2>
+        <p className="text-[10px] text-lab-muted mt-0.5">
           分析于 {new Date(session.analyzedAt).toLocaleString('zh-CN')}
         </p>
       </div>
@@ -349,14 +359,14 @@ export default function ArchaeologyTimeline() {
       <div className="flex-1 overflow-auto">
         <div className="flex gap-6 p-6" style={{ minHeight: '100%' }}>
           <div className="flex-1 min-w-0">
-            <h3 className="text-[11px] font-semibold text-gray-500 mb-4 tracking-wide">
+            <h3 className="text-[11px] font-semibold text-lab-muted mb-4 tracking-wide">
               认知地层时间轴
             </h3>
 
             {!hasTimeline ? (
-              <div className="p-6 text-center rounded-xl" style={{ backgroundColor: '#F9FAFB' }}>
-                <p className="text-[11px] text-gray-400">分析中...</p>
-                <p className="text-[10px] text-gray-300 mt-1">正在提取认知地层结构</p>
+              <div className="p-6 text-center rounded-xl border border-lab-border-subtle bg-lab-raised">
+                <p className="text-[11px] text-lab-muted">分析中...</p>
+                <p className="text-[10px] text-lab-faint mt-1">正在提取认知地层结构</p>
               </div>
             ) : (
               <div>
@@ -372,12 +382,12 @@ export default function ArchaeologyTimeline() {
 
             {session.rawText && (
               <div className="mt-6">
-                <h3 className="text-[11px] font-semibold text-gray-500 mb-3 tracking-wide">
+                <h3 className="text-[11px] font-semibold text-lab-muted mb-3 tracking-wide">
                   原始对话
                 </h3>
                 <div
-                  className="p-4 rounded-xl text-[11px] text-gray-600 leading-relaxed whitespace-pre-wrap"
-                  style={{ backgroundColor: '#F9FAFB', maxHeight: '300px', overflow: 'auto' }}
+                  className="p-4 rounded-xl text-[11px] text-lab-ink leading-relaxed whitespace-pre-wrap border border-lab-border-subtle bg-lab-raised"
+                  style={{ maxHeight: '300px', overflow: 'auto' }}
                 >
                   {session.rawText}
                 </div>
@@ -389,23 +399,23 @@ export default function ArchaeologyTimeline() {
             <ExtractionCard
               title="决策节点"
               items={session.decisions || []}
-              color="#059669"
-              bg="#ECFDF5"
-              borderColor="#A7F3D0"
+              color="var(--color-success)"
+              bg="var(--color-success-dim)"
+              borderColor="var(--color-border-subtle)"
             />
             <ExtractionCard
               title="认知盲区"
               items={session.blindSpots || []}
-              color="#DC2626"
-              bg="#FEF2F2"
-              borderColor="#FECACA"
+              color="var(--color-error)"
+              bg="var(--color-error-dim)"
+              borderColor="var(--color-border-subtle)"
             />
             <ExtractionCard
               title="待办考古"
               items={session.actionItems || []}
-              color="#D97706"
-              bg="#FFFBEB"
-              borderColor="#FCD34D"
+              color="var(--color-warning)"
+              bg="var(--color-warning-dim)"
+              borderColor="var(--color-border-subtle)"
             />
           </div>
         </div>

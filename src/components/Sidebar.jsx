@@ -26,19 +26,18 @@ function Chevron({ expanded }) {
 // 文档分类颜色指示器
 function CategoryDot({ categoryType }) {
   const dotColors = {
-    'constitution': '#8B5CF6', // 紫色 - 宪法/决策
-    'market-insight': '#3B82F6', // 蓝色 - 洞察
-    'product-strategy': '#10B981', // 绿色 - 存档
-    'decision-chain': '#8B5CF6', // 紫色 - 决策
-    'anti-fragile-audit': '#EF4444', // 红色 - 审计
-    'execution-roadmap': '#F59E0B' // 橙色 - 执行
+    constitution: '#C96442',
+    'market-insight': '#6A9BCC',
+    'product-strategy': '#788C5D',
+    'decision-chain': '#C96442',
+    'anti-fragile-audit': '#C0453A',
+    'execution-roadmap': '#D97757',
   }
-  
-  // 默认分类匹配
-  let color = '#9CA3AF'
-  if (categoryType?.includes('archive') || categoryType?.includes('product')) color = '#10B981'
-  if (categoryType?.includes('insight') || categoryType?.includes('market')) color = '#3B82F6'
-  if (categoryType?.includes('decision') || categoryType?.includes('constitution')) color = '#8B5CF6'
+
+  let color = '#B0AEA5'
+  if (categoryType?.includes('archive') || categoryType?.includes('product')) color = '#788C5D'
+  if (categoryType?.includes('insight') || categoryType?.includes('market')) color = '#6A9BCC'
+  if (categoryType?.includes('decision') || categoryType?.includes('constitution')) color = '#C96442'
   
   return (
     <span
@@ -71,9 +70,9 @@ function ProjectSelector() {
     <div className="relative mb-4">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2 bg-lab-overlay border border-lab-border rounded-lab hover:bg-lab-raised transition-colors duration-[150ms] ease-lab"
       >
-        <span className="text-sm font-medium text-gray-800 truncate">
+        <span className="text-sm font-medium text-lab-ink truncate">
           {activeProject?.name || '选择项目'}
         </span>
         <Chevron expanded={isOpen} />
@@ -86,7 +85,7 @@ function ProjectSelector() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+            className="absolute top-full left-0 right-0 mt-1 bg-lab-overlay border border-lab-border rounded-lab shadow-card z-50"
           >
             <div className="max-h-60 overflow-y-auto">
               {projects.map(project => (
@@ -96,10 +95,10 @@ function ProjectSelector() {
                     setActiveProject(project.id)
                     setIsOpen(false)
                   }}
-                  className={`w-full px-3 py-2 text-left text-sm transition-colors ${
+                  className={`w-full px-3 py-2 text-left text-sm transition-colors duration-[150ms] ease-lab ${
                     project.id === activeProjectId
-                      ? 'bg-purple-50 text-purple-700'
-                      : 'hover:bg-gray-50 text-gray-700'
+                      ? 'lab-row-selected'
+                      : 'hover:bg-lab-raised text-lab-ink'
                   }`}
                 >
                   {project.name}
@@ -107,7 +106,7 @@ function ProjectSelector() {
               ))}
             </div>
             
-            <div className="border-t border-gray-200">
+            <div className="border-t border-lab-border-subtle">
               {showCreateForm ? (
                 <form onSubmit={handleCreateProject} className="p-2">
                   <input
@@ -115,13 +114,13 @@ function ProjectSelector() {
                     value={newProjectName}
                     onChange={(e) => setNewProjectName(e.target.value)}
                     placeholder="输入项目名称..."
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-2 py-1 text-sm border border-lab-border rounded-lab bg-lab-overlay text-lab-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-lab-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lab-overlay"
                     autoFocus
                   />
                   <div className="flex gap-2 mt-2">
                     <button
                       type="submit"
-                      className="flex-1 px-2 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+                      className="flex-1 px-2 py-1 text-sm lab-btn-primary rounded-lab"
                     >
                       创建
                     </button>
@@ -131,7 +130,7 @@ function ProjectSelector() {
                         setShowCreateForm(false)
                         setNewProjectName('')
                       }}
-                      className="flex-1 px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded"
+                      className="flex-1 px-2 py-1 text-sm text-lab-muted hover:bg-lab-raised rounded-lab"
                     >
                       取消
                     </button>
@@ -140,7 +139,7 @@ function ProjectSelector() {
               ) : (
                 <button
                   onClick={() => setShowCreateForm(true)}
-                  className="w-full px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2"
+                  className="w-full px-3 py-2 text-sm text-lab-muted hover:bg-lab-raised flex items-center gap-2"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round"></path>
@@ -207,29 +206,27 @@ function ConstitutionAnchor() {
         onClick={handleEdit}
         className="w-full text-left p-3 rounded-lg transition-all hover:shadow-sm cursor-pointer"
         style={{
-          backgroundColor: isSet ? '#F5F3FF' : '#F9FAFB',
-          border: isSet ? '1px solid #DDD6FE' : '1px dashed #D1D5DB'
+          backgroundColor: isSet ? 'var(--color-accent-dim)' : 'var(--color-bg-base)',
+          border: isSet ? '1px solid var(--color-border-subtle)' : '1px dashed var(--color-border-default)',
         }}
       >
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-purple-600 font-semibold uppercase tracking-wider">
+            <span className="text-xs text-lab-accent-warm font-semibold uppercase tracking-wider">
               核心定位
             </span>
           </div>
           <div className="flex items-center gap-2">
             <span
               onClick={handleToggle}
-              className="text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              className="text-xs text-lab-faint hover:text-lab-muted transition-colors cursor-pointer"
             >
               {isExpanded ? '收起' : '查看'}
             </span>
-            <span className="text-xs text-gray-400">
-              编辑
-            </span>
+            <span className="text-xs text-lab-faint">编辑</span>
           </div>
         </div>
-        <p className="text-[10px] text-gray-400 leading-relaxed" style={{ lineHeight: '1.4' }}>
+        <p className="text-[10px] text-lab-muted leading-relaxed" style={{ lineHeight: '1.4' }}>
           {displaySlogan}
         </p>
       </div>
@@ -239,12 +236,12 @@ function ConstitutionAnchor() {
           {constitutionFields.map(({ key, label }) => (
             <div key={key} className="mb-1.5">
               <div className="flex items-center gap-1">
-                <span className="text-[9px] text-gray-400 uppercase tracking-wider">
+                <span className="text-[9px] text-lab-faint uppercase tracking-wider">
                   {label}
                 </span>
               </div>
-              <p className="text-[9px] text-gray-400 leading-relaxed mt-0.5" style={{ lineHeight: '1.3' }}>
-                {fields[key] || <span className="text-gray-300 italic">未设置</span>}
+              <p className="text-[9px] text-lab-muted leading-relaxed mt-0.5" style={{ lineHeight: '1.3' }}>
+                {fields[key] || <span className="text-lab-faint italic">未设置</span>}
               </p>
             </div>
           ))}
@@ -265,8 +262,6 @@ function TreeNode({ node, level = 0, selectedDocId, onSelect, onToggle, collapse
   const isExpanded = node.expanded
   const isSelected = selectedDocId === node.id
   const isDocument = node.type === 'document'
-  const isCategory = node.type === 'category'
-  const isProject = node.type === 'project'
 
   const handleClick = () => {
     if (isDocument) {
@@ -286,18 +281,12 @@ function TreeNode({ node, level = 0, selectedDocId, onSelect, onToggle, collapse
           onClick={handleClick}
           className={`w-full h-8 flex items-center justify-center rounded transition-colors ${
             isSelected
-              ? 'bg-purple-100 text-purple-700'
-              : 'hover:bg-gray-100 text-gray-700'
+              ? 'bg-lab-accent-dim text-lab-accent-warm'
+              : 'hover:bg-lab-raised text-lab-ink'
           }`}
           title={node.name}
         >
-          <span className="text-base">
-            {isDocument ? (
-              <span style={{ fontSize: '10px' }}>•</span>
-            ) : (
-              isProject ? '📁' : '📂'
-            )}
-          </span>
+          <span className="text-base leading-none text-lab-muted">•</span>
         </button>
       </div>
     )
@@ -307,26 +296,21 @@ function TreeNode({ node, level = 0, selectedDocId, onSelect, onToggle, collapse
     <div className="select-none">
       <button
         onClick={handleClick}
-        className={`w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded transition-colors ${
+        className={`w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-lab transition-colors duration-[150ms] ease-lab ${
           isSelected
-            ? 'bg-purple-100 text-purple-700'
-            : 'hover:bg-gray-100 text-gray-700'
+            ? 'bg-lab-accent-dim text-lab-accent-warm'
+            : 'hover:bg-lab-raised text-lab-ink'
         }`}
         style={{ paddingLeft: `${level * 16 + 8}px` }}
       >
         {!isDocument && <Chevron expanded={isExpanded} />}
         {isDocument && <span className="w-2" />}
-        
-        <span className="flex-shrink-0">
-          {isDocument ? (
+        {isDocument ? (
+          <span className="flex-shrink-0">
             <CategoryDot categoryType={node.parentId} />
-          ) : (
-            <span className="text-lg">
-              {isProject ? '📁' : '📂'}
-            </span>
-          )}
-        </span>
-        
+          </span>
+        ) : null}
+
         <span className="truncate flex-1 text-left">
           {node.name}
         </span>
@@ -388,7 +372,7 @@ function TemplateSelector({ onSelect, onClose }) {
           <button
             key={key}
             onClick={() => handleTemplateSelect(key)}
-            className="flex items-center gap-2 px-2 py-1.5 text-xs text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-md transition-colors border border-transparent hover:border-purple-200 w-full justify-start"
+            className="flex items-center gap-2 px-2 py-1.5 text-xs text-lab-ink hover:bg-lab-accent-dim hover:text-lab-accent-warm rounded-lab transition-colors border border-transparent hover:border-lab-border w-full justify-start"
             title={template.label}
           >
             <span className="text-sm">{template.icon}</span>
@@ -405,10 +389,11 @@ function NewDocumentButton() {
   const [showTemplates, setShowTemplates] = useState(false)
 
   return (
-    <div className="sticky bottom-0 bg-white border-t border-gray-200 p-3">
+    <div className="sticky bottom-0 bg-lab-overlay border-t border-lab-border-subtle p-3">
       <button
+        type="button"
         onClick={() => setShowTemplates(!showTemplates)}
-        className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg text-sm font-medium hover:from-purple-700 hover:to-purple-600 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+        className="w-full py-2.5 lab-btn-primary text-sm flex items-center justify-center gap-2"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round"></path>
@@ -425,12 +410,13 @@ function NewDocumentButton() {
             exit={{ opacity: 0, y: 10, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="mt-3 bg-white border border-purple-200 rounded-lg shadow-lg">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-purple-100">
-                <span className="text-sm font-semibold text-gray-700">选择模板</span>
+            <div className="mt-3 bg-lab-overlay border border-lab-border rounded-lab shadow-elevated">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-lab-border-subtle">
+                <span className="text-sm font-semibold text-lab-ink">选择模板</span>
                 <button
+                  type="button"
                   onClick={() => setShowTemplates(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-lab-faint hover:text-lab-muted"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round"></path>
@@ -446,36 +432,40 @@ function NewDocumentButton() {
   )
 }
 
-// 主 Sidebar 组件
+/**
+ * 左侧导航：语义分区参考 shadcn Sidebar（Header / 可滚动 Content / Footer），
+ * 状态仍在 LabContext，不引入全页 SidebarProvider。
+ */
 export default function Sidebar() {
-  const { projects, activeProjectId, activeDocId, currentProject, sidebarCollapsed, setSidebarCollapsed } = useLab()
+  const { activeDocId, currentProject, sidebarCollapsed, setSidebarCollapsed } = useLab()
 
   return (
-    <div className="h-full flex flex-col bg-white border-r border-gray-200">
-      {/* 头部 - 收起时隐藏 */}
+    <div className="relative flex h-full min-h-0 flex-col border-r border-lab-border-subtle bg-lab-sidebar">
+      {/* Header */}
       {!sidebarCollapsed && (
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <header className="flex shrink-0 items-start justify-between gap-2 border-b border-lab-border-subtle p-4">
           <div>
-            <h2 className="text-lg font-semibold text-gray-800 mb-1">思维实验室</h2>
-            <p className="text-xs text-gray-500">管理你的项目和文档</p>
+            <h2 className="mb-1 font-display text-lg font-semibold text-lab-ink">思维实验室</h2>
+            <p className="text-xs text-lab-muted">管理你的项目和文档</p>
           </div>
           <button
+            type="button"
             onClick={() => setSidebarCollapsed(true)}
-            className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lab text-lab-faint transition-colors hover:bg-lab-accent-dim hover:text-lab-muted"
             title="收起侧边栏"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
-        </div>
+        </header>
       )}
 
-      {/* 收起状态下的展开按钮 */}
       {sidebarCollapsed && (
         <button
+          type="button"
           onClick={() => setSidebarCollapsed(false)}
-          className="w-full h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          className="flex h-8 w-full shrink-0 items-center justify-center border-b border-lab-border-subtle text-lab-faint hover:bg-lab-accent-dim hover:text-lab-muted"
           title="展开侧边栏"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -484,7 +474,6 @@ export default function Sidebar() {
         </button>
       )}
 
-      {/* 项目选择器 - 收起时简化显示 */}
       {!sidebarCollapsed ? (
         <div className="px-4 pt-4">
           <ProjectSelector />
@@ -492,23 +481,23 @@ export default function Sidebar() {
       ) : (
         <div className="p-2">
           <button
-            className="w-full h-8 flex items-center justify-center text-lg"
+            type="button"
+            className="flex h-8 w-full items-center justify-center text-xs font-semibold text-lab-muted"
             title={currentProject?.name || '选择项目'}
           >
-            📁
+            {(currentProject?.name || '项').slice(0, 1)}
           </button>
         </div>
       )}
 
-      {/* 宪法锚点 - 收起时隐藏 */}
       {!sidebarCollapsed && (
         <div className="px-4 pt-2">
           <ConstitutionAnchor />
         </div>
       )}
 
-      {/* 项目树 - 收起时只显示图标 */}
-      <div className="flex-1 overflow-y-auto px-2 py-2">
+      {/* Content（可滚动） */}
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden px-2 py-2">
         {currentProject?.children?.map((category, catIndex) => (
           <TreeNode
             key={category?.id != null && String(category.id) !== '' ? String(category.id) : `root-cat-${catIndex}`}
@@ -518,25 +507,35 @@ export default function Sidebar() {
           />
         ))}
         {!currentProject?.children?.length && !sidebarCollapsed && (
-          <div className="text-center text-sm text-gray-400 py-8">
-            暂无分类
-          </div>
+          <div className="py-8 text-center text-sm text-lab-muted">暂无分类</div>
         )}
       </div>
 
-      {/* 新建文档按钮 - 收起时简化显示 */}
-      {sidebarCollapsed ? (
-        <div className="sticky bottom-0 bg-white border-t border-gray-200 p-2">
-          <button
-            className="w-full h-8 flex items-center justify-center text-lg hover:bg-gray-50 rounded transition-colors"
-            title="新建文档"
-          >
-            +
-          </button>
-        </div>
-      ) : (
-        <NewDocumentButton />
-      )}
+      {/* Footer */}
+      <footer className="mt-auto shrink-0 border-t border-lab-border-subtle bg-lab-overlay">
+        {sidebarCollapsed ? (
+          <div className="p-2">
+            <button
+              type="button"
+              className="flex h-8 w-full items-center justify-center rounded-lab text-lg transition-colors hover:bg-lab-raised"
+              title="新建文档"
+            >
+              +
+            </button>
+          </div>
+        ) : (
+          <NewDocumentButton />
+        )}
+      </footer>
+
+      {/* Rail：右缘点击收起/展开（仅借鉴交互，不占全页布局） */}
+      <button
+        type="button"
+        aria-label="切换侧边栏宽度"
+        title="切换侧边栏"
+        onClick={() => setSidebarCollapsed((c) => !c)}
+        className="absolute inset-y-3 right-0 z-10 hidden w-2 rounded-l-md hover:bg-lab-accent-dim/50 md:block"
+      />
     </div>
   )
 }

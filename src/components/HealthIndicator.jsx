@@ -12,11 +12,11 @@ export default function HealthIndicator({ percentage, locked, total }) {
   const filled = Math.round((percentage / 100) * dots)
   
   if (total === 0) {
-    return <span className="text-gray-300 text-xs">—</span>
+    return <span className="text-lab-border text-xs">—</span>
   }
   
   if (percentage === 100) {
-    return <CheckCircle size={14} className="text-emerald-500" />
+    return <CheckCircle size={14} className="text-lab-success" />
   }
   
   return (
@@ -25,7 +25,7 @@ export default function HealthIndicator({ percentage, locked, total }) {
         <div
           key={i}
           className={`w-1.5 h-1.5 rounded-full transition-colors ${
-            i < filled ? 'bg-emerald-500' : 'border border-gray-300'
+            i < filled ? 'bg-lab-success' : 'border border-lab-border'
           }`}
         />
       ))}

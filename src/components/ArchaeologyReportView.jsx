@@ -6,7 +6,7 @@ import {
   resolveArchaeologyDocTypeHint
 } from '../config/templates'
 
-export default function ArchaeologyReportView({ session, onBack, onRefresh }) {
+export default function ArchaeologyReportView({ session, onBack, onRefresh, variant = 'page' }) {
   const [archiving, setArchiving] = useState({})
   const {
     projectTree,
@@ -109,65 +109,78 @@ export default function ArchaeologyReportView({ session, onBack, onRefresh }) {
 
   const confirmedAssets = session.analysis?.assets?.filter(i => i.status === 'confirmed') || []
 
+  const isPanel = variant === 'panel'
+
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200"
-          >
-            ← 返回审阅
-          </button>
-          <h2 className="text-lg font-semibold text-gray-800">决策复盘报告</h2>
+    <div className={`flex flex-col overflow-hidden bg-lab-base ${isPanel ? 'h-full min-h-0' : 'flex-1'}`}>
+      <div
+        className={`flex flex-shrink-0 items-center justify-between border-b border-lab-border-subtle bg-lab-overlay ${
+          isPanel ? 'px-3 py-2.5' : 'px-6 py-4'
+        }`}
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="shrink-0 rounded border border-lab-border-subtle bg-lab-raised px-2.5 py-1 text-xs text-lab-ink hover:bg-lab-accent-dim"
+            >
+              ← 返回
+            </button>
+          ) : null}
+          <h2 className="truncate font-display text-sm font-semibold text-lab-ink md:text-base">
+            {isPanel ? '报告与归档' : '决策复盘报告'}
+          </h2>
         </div>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 gap-2">
           <button
+            type="button"
             onClick={handleExportMarkdown}
-            className="px-3 py-1.5 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+            className="lab-btn-primary px-2.5 py-1.5 text-[11px] !shadow-none md:px-3 md:text-xs"
           >
             导出 MD
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={`min-h-0 flex-1 overflow-auto ${isPanel ? 'p-3' : 'p-6'}`}>
+        <div className={`grid gap-6 ${isPanel ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
           <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">报告预览</h3>
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <pre className="text-xs whitespace-pre-wrap text-gray-700" style={{ fontFamily: 'monospace' }}>
+            <h3 className="mb-2 font-display text-xs font-semibold text-lab-ink md:text-sm">报告预览</h3>
+            <div className="rounded-lg border border-lab-border-subtle bg-lab-overlay p-3 shadow-card md:p-4">
+              <pre className="whitespace-pre-wrap font-mono text-[11px] text-lab-ink md:text-xs">
                 {generateReportContent()}
               </pre>
             </div>
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">
+            <h3 className="mb-2 font-display text-xs font-semibold text-lab-ink md:text-sm">
               知识资产归档 ({confirmedAssets.length})
             </h3>
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-lab-muted mb-3">
               归档写入左侧「项目树」（当前活跃项目）。若无项目会自动新建「决策复盘项目」。
             </p>
 
             {confirmedAssets.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 text-sm">
+              <div className="text-center py-8 text-lab-muted text-sm border border-dashed border-lab-border-subtle rounded-lg">
                 还没有确认的知识资产，请先确认一些条目
               </div>
             ) : (
               <div className="space-y-3">
                 {confirmedAssets.map(asset => (
-                  <div key={asset.id} className="bg-white border border-gray-200 rounded-lg p-3">
-                    <p className="text-sm text-gray-800 mb-2">{asset.content}</p>
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs text-gray-500">
+                  <div key={asset.id} className="bg-lab-overlay border border-lab-border-subtle rounded-lg p-3 shadow-card">
+                    <p className="text-sm text-lab-ink mb-2">{asset.content}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-xs text-lab-muted min-w-0">
                         {asset.type && <span className="mr-2">类型: {asset.type}</span>}
                         {asset.suggestedTemplate && <span>建议归档到: {asset.suggestedTemplate}</span>}
                       </div>
                       <button
+                        type="button"
                         onClick={() => handleArchiveAsset(asset)}
                         disabled={archiving[asset.id]}
-                        className="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 disabled:opacity-50"
+                        className="flex-shrink-0 px-3 py-1 bg-lab-success text-white rounded text-xs hover:opacity-92 disabled:opacity-50"
                       >
                         {archiving[asset.id] ? '归档中...' : '归档'}
                       </button>

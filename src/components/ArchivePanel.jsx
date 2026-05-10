@@ -8,25 +8,25 @@ import DocumentRenderer from './DocumentRenderer'
 function EmptyState({ projectName }) {
   return (
     <div className="flex flex-col items-center justify-center h-full">
-      <svg width="64" height="64" viewBox="0 0 64 64" fill="none" className="mb-6">
-        <rect x="8" y="12" width="48" height="40" rx="4" stroke="#D1D5DB" strokeWidth="2" />
-        <path d="M8 28L32 44L56 28" stroke="#D1D5DB" strokeWidth="2" />
-        <path d="M24 12V4C24 2.89543 24.8954 2 26 2H38C39.1046 2 40 2.89543 40 4V12" stroke="#D1D5DB" strokeWidth="2" />
-        <line x1="32" y1="32" x2="32" y2="44" stroke="#D1D5DB" strokeWidth="2" />
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none" className="mb-6 text-lab-border">
+        <rect x="8" y="12" width="48" height="40" rx="4" stroke="currentColor" strokeWidth="2" />
+        <path d="M8 28L32 44L56 28" stroke="currentColor" strokeWidth="2" />
+        <path d="M24 12V4C24 2.89543 24.8954 2 26 2H38C39.1046 2 40 2.89543 40 4V12" stroke="currentColor" strokeWidth="2" />
+        <line x1="32" y1="32" x2="32" y2="44" stroke="currentColor" strokeWidth="2" />
       </svg>
-      <h2 className="text-lg font-semibold text-gray-800 mb-2">欢迎来到 {projectName}</h2>
-      <p className="text-sm text-gray-500 mb-4 text-center max-w-[280px]">从左侧新建文档开始，记录你的思考和决策</p>
+      <h2 className="text-lg font-semibold font-display text-lab-ink mb-2">欢迎来到 {projectName}</h2>
+      <p className="text-sm text-lab-muted mb-4 text-center max-w-[280px]">从左侧新建文档开始，记录你的思考和决策</p>
     </div>
   )
 }
 
 function DocumentConflictWarning({ conflicts, onStartPressureTest }) {
   return (
-    <div 
-      className="mb-4 p-4 rounded-xl"
+    <div
+      className="mb-4 p-4 rounded-xl border"
       style={{
-        backgroundColor: '#FFFBEB',
-        border: '1px solid #FEF3C7'
+        backgroundColor: 'var(--color-warning-dim)',
+        borderColor: 'color-mix(in srgb, var(--color-warning) 35%, transparent)',
       }}
     >
       <div className="flex items-start gap-3">
@@ -39,36 +39,36 @@ function DocumentConflictWarning({ conflicts, onStartPressureTest }) {
         >
           <path
             d="M8 2L14 12H2L8 2Z"
-            stroke="#F59E0B"
+            stroke="var(--color-warning)"
             strokeWidth="1.2"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          <path d="M8 5V8" stroke="#F59E0B" strokeWidth="1.2" strokeLinecap="round" />
-          <circle cx="8" cy="11" r="1" fill="#F59E0B" />
+          <path d="M8 5V8" stroke="var(--color-warning)" strokeWidth="1.2" strokeLinecap="round" />
+          <circle cx="8" cy="11" r="1" fill="var(--color-warning)" />
         </svg>
         <div className="flex-1">
-          <h4 className="text-sm font-medium text-amber-900">宪法冲突检测</h4>
-          <p className="text-xs text-amber-700 mt-1">{conflicts?.summary}</p>
+          <h4 className="text-sm font-medium text-lab-ink">宪法冲突检测</h4>
+          <p className="text-xs text-lab-muted mt-1">{conflicts?.summary}</p>
           {conflicts?.conflicts && conflicts.conflicts.length > 0 && (
             <div className="mt-2 space-y-1.5">
               {conflicts.conflicts.slice(0, 2).map((conflict, idx) => (
                 <div
                   key={idx}
                   className="text-xs p-2 rounded-lg"
-                  style={{ backgroundColor: 'rgba(251, 191, 36, 0.1)' }}
+                  style={{ backgroundColor: 'var(--color-bg-overlay)' }}
                 >
-                  <div className="font-medium text-amber-800">违反约束 #{conflict.constraintIndex + 1}</div>
-                  <div className="text-amber-600 mt-0.5">约束: {conflict.constraintText}</div>
-                  <div className="text-amber-600">冲突: {conflict.prdViolation}</div>
+                  <div className="font-medium text-lab-ink">违反约束 #{conflict.constraintIndex + 1}</div>
+                  <div className="text-lab-muted mt-0.5">约束: {conflict.constraintText}</div>
+                  <div className="text-lab-muted">冲突: {conflict.prdViolation}</div>
                 </div>
               ))}
             </div>
           )}
           <button
+            type="button"
             onClick={onStartPressureTest}
-            className="mt-3 text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-all hover:scale-105"
-            style={{ backgroundColor: '#8B5CF6' }}
+            className="mt-3 text-xs px-3 py-1.5 rounded-lg font-medium lab-btn-primary transition-opacity hover:opacity-95"
           >
             🔍 开启压力测试
           </button>
@@ -87,8 +87,8 @@ function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasC
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
           <p className="text-4xl mb-4">📄</p>
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">文档不存在</h3>
-          <p className="text-sm text-gray-500">请选择其他文档</p>
+          <h3 className="text-lg font-semibold font-display text-lab-ink mb-2">文档不存在</h3>
+          <p className="text-sm text-lab-muted">请选择其他文档</p>
         </div>
       </div>
     )
@@ -112,13 +112,13 @@ function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasC
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between">
+      <div className="px-6 py-4 border-b border-lab-border-subtle flex items-start justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-800">{doc?.name || '未命名文档'}</h1>
+          <h1 className="text-lg font-semibold font-display text-lab-ink">{doc?.name || '未命名文档'}</h1>
           <div className="flex items-center gap-3 mt-1">
-            <span className="text-xs text-gray-500">{categoryName}</span>
+            <span className="text-xs text-lab-muted">{categoryName}</span>
             {doc?.updatedAt && (
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-lab-faint">
                 更新于 {new Date(doc.updatedAt).toLocaleDateString('zh-CN')}
               </span>
             )}
@@ -126,22 +126,25 @@ function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasC
         </div>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={handleDeleteClick}
-            className="text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-all hover:scale-105 active:scale-95"
-            style={{ backgroundColor: '#EF4444', borderRadius: '9px' }}
+            className="text-xs px-3 py-1.5 rounded-lg font-medium text-[var(--color-text-inverted)] transition-all hover:opacity-95 active:scale-[0.98]"
+            style={{ backgroundColor: 'var(--color-error)', borderRadius: '9px' }}
           >
             删除
           </button>
           <button
+            type="button"
             onClick={onSummonMentor}
-            className="text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-all hover:scale-105 active:scale-95"
-            style={{ backgroundColor: '#7C3AED' }}
+            className="text-xs px-3 py-1.5 rounded-lg font-medium text-[var(--color-text-inverted)] transition-all hover:opacity-95 active:scale-[0.98]"
+            style={{ backgroundColor: 'var(--color-accent-blue)', borderRadius: '9px' }}
           >
             ✨ 召唤导师
           </button>
           <button
+            type="button"
             onClick={onEdit}
-            className="text-xs px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-all"
+            className="text-xs px-3 py-1.5 rounded-lg font-medium text-lab-muted hover:bg-lab-accent-dim hover:text-lab-accent-warm transition-all"
           >
             编辑
           </button>
@@ -156,22 +159,15 @@ function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasC
           />
         )}
 
-        <div
-          className="p-6 rounded-xl"
-          style={{
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #E5E7EB',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-          }}
-        >
+        <div className="p-6 rounded-xl bg-lab-overlay border border-lab-border-subtle shadow-card">
           <DocumentRenderer doc={doc} />
         </div>
 
         {showBacklinks && (
-          <div className="mt-6 pt-4 border-t border-gray-100">
+          <div className="mt-6 pt-4 border-t border-lab-border-subtle">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-gray-500 mb-2">← 被引用</p>
+                <p className="text-xs text-lab-muted mb-2">← 被引用</p>
                 {hasBacklinks ? (
                   <div className="space-y-1">
                     {(doc.backlinks || []).map(blId => {
@@ -180,7 +176,7 @@ function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasC
                         <div
                           key={blId}
                           onClick={() => blDoc && handleLinkClick(blId)}
-                          className="text-sm text-blue-600 cursor-pointer hover:underline truncate"
+                          className="text-sm text-lab-accent-warm cursor-pointer hover:underline truncate"
                         >
                           {blDoc ? blDoc.name : blId}
                         </div>
@@ -188,11 +184,11 @@ function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasC
                     })}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-400">暂无</p>
+                  <p className="text-sm text-lab-muted">暂无</p>
                 )}
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-2">→ 引用</p>
+                <p className="text-xs text-lab-muted mb-2">→ 引用</p>
                 {hasReferences ? (
                   <div className="space-y-1">
                     {(doc.references || []).map(refId => {
@@ -201,7 +197,7 @@ function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasC
                         <div
                           key={refId}
                           onClick={() => refDoc && handleLinkClick(refId)}
-                          className="text-sm text-blue-600 cursor-pointer hover:underline truncate"
+                          className="text-sm text-lab-accent-warm cursor-pointer hover:underline truncate"
                         >
                           {refDoc ? refDoc.name : refId}
                         </div>
@@ -209,7 +205,7 @@ function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasC
                     })}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-400">暂无</p>
+                  <p className="text-sm text-lab-muted">暂无</p>
                 )}
               </div>
             </div>
@@ -231,8 +227,8 @@ function EditingView({ doc, categoryName, onSave, onCancel, allDocsMap }) {
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
           <p className="text-4xl mb-4">📝</p>
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">文档不存在</h3>
-          <p className="text-sm text-gray-500">无法找到要编辑的文档</p>
+          <h3 className="text-lg font-semibold font-display text-lab-ink mb-2">文档不存在</h3>
+          <p className="text-sm text-lab-muted">无法找到要编辑的文档</p>
         </div>
       </div>
     )
@@ -240,24 +236,18 @@ function EditingView({ doc, categoryName, onSave, onCancel, allDocsMap }) {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between">
+      <div className="px-6 py-4 border-b border-lab-border-subtle flex items-start justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-800">{doc?.name || '未命名文档'}</h1>
+          <h1 className="text-lg font-semibold font-display text-lab-ink">{doc?.name || '未命名文档'}</h1>
           <div className="flex items-center gap-3 mt-1">
-            <span className="text-xs text-gray-500">{categoryName}</span>
-            <span className="text-xs text-purple-500">编辑中</span>
+            <span className="text-xs text-lab-muted">{categoryName}</span>
+            <span className="text-xs text-lab-accent-warm">编辑中</span>
           </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-auto px-6 py-4">
-        <div
-          className="p-6 rounded-xl"
-          style={{
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #E5E7EB'
-          }}
-        >
+        <div className="p-6 rounded-xl bg-lab-overlay border border-lab-border-subtle shadow-card">
           <DocumentForm 
             doc={doc} 
             onSave={handleSave} 
@@ -395,12 +385,9 @@ ${selectedDoc.content || JSON.stringify(selectedDoc.fields || {}, null, 2)}
   const conflicts = activeDocId ? documentConflicts[activeDocId] : null
 
   return (
-    <div 
-      className="h-full flex flex-col overflow-hidden"
-      style={{ backgroundColor: '#F9FAFB' }}
-    >
+    <div className="h-full flex flex-col overflow-hidden bg-lab-base">
       <div className="px-6 pt-4 pb-2">
-        <p className="text-xs text-gray-500">{currentProject?.name || ''}</p>
+        <p className="text-xs text-lab-muted">{currentProject?.name || ''}</p>
       </div>
 
       {!activeDocId && !editingDocId ? (
@@ -431,8 +418,8 @@ ${selectedDoc.content || JSON.stringify(selectedDoc.fields || {}, null, 2)}
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <p className="text-4xl mb-4">🔍</p>
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">文档未找到</h3>
-            <p className="text-sm text-gray-500">无法找到该文档</p>
+            <h3 className="text-lg font-semibold font-display text-lab-ink mb-2">文档未找到</h3>
+            <p className="text-sm text-lab-muted">无法找到该文档</p>
           </div>
         </div>
       )}

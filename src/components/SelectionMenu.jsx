@@ -33,26 +33,28 @@ function FieldSelector({ doc, onSelectField, onCancel }) {
   
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onCancel}>
-      <div 
-        className="bg-white rounded-xl p-4 shadow-xl w-80" 
-        onClick={e => e.stopPropagation()}
+      <div
+        className="bg-lab-overlay rounded-xl p-4 shadow-elevated border border-lab-border-subtle w-80"
+        onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-sm font-semibold text-gray-800 mb-3">选择目标字段</h3>
-        <p className="text-xs text-gray-500 mb-4">文档: {doc.name}</p>
+        <h3 className="text-sm font-semibold font-display text-lab-ink mb-3">选择目标字段</h3>
+        <p className="text-xs text-lab-muted mb-4">文档: {doc.name}</p>
         <div className="space-y-1">
           {templateFields.map(field => (
             <button
               key={field.key}
+              type="button"
               onClick={() => onSelectField(field.key)}
-              className="w-full px-3 py-2 rounded-lg text-sm text-left hover:bg-gray-50 transition-colors"
+              className="w-full px-3 py-2 rounded-lg text-sm text-left text-lab-ink hover:bg-lab-accent-dim transition-colors"
             >
               {field.label}
             </button>
           ))}
         </div>
         <button
+          type="button"
           onClick={onCancel}
-          className="w-full mt-4 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+          className="w-full mt-4 px-3 py-2 rounded-lg text-sm text-lab-muted hover:bg-lab-raised transition-colors"
         >
           取消
         </button>
@@ -108,12 +110,12 @@ function recommendDocument(text, documents) {
 
 // 六模块分类定义（与项目树 categoryType 对齐）
 const QUICK_CATEGORIES = [
-  { value: 'constitution', label: '01 项目宪法', icon: '🔒', color: '#8B5CF6' },
-  { value: 'market', label: '02 市场与用户洞察', icon: '👤', color: '#3B82F6' },
-  { value: 'strategy', label: '03 策略与增长', icon: '🚀', color: '#F59E0B' },
-  { value: 'decision', label: '04 决策链图谱', icon: '⚖️', color: '#10B981' },
-  { value: 'antifragile', label: '05 反脆弱审计', icon: '💀', color: '#EF4444' },
-  { value: 'roadmap', label: '06 执行路线图', icon: '🚩', color: '#6B7280' }
+  { value: 'constitution', label: '01 项目宪法', icon: '🔒', color: '#C96442' },
+  { value: 'market', label: '02 市场与用户洞察', icon: '👤', color: '#6A9BCC' },
+  { value: 'strategy', label: '03 策略与增长', icon: '🚀', color: '#D97757' },
+  { value: 'decision', label: '04 决策链图谱', icon: '⚖️', color: '#788C5D' },
+  { value: 'antifragile', label: '05 反脆弱审计', icon: '💀', color: '#C0453A' },
+  { value: 'roadmap', label: '06 执行路线图', icon: '🚩', color: '#6B6860' },
 ]
 
 function classifyByKeywords(text) {
@@ -260,7 +262,7 @@ export default function SelectionMenu({ text, position, onClose }) {
     <>
       <div
         ref={menuRef}
-        className="fixed z-50 bg-white rounded-lg shadow-md p-3 min-w-[280px]"
+        className="fixed z-50 bg-lab-overlay border border-lab-border-subtle rounded-lg shadow-card p-3 min-w-[280px]"
         style={{
           left: Math.min(position.x, window.innerWidth - 300),
           top: Math.min(position.y, window.innerHeight - 350),
@@ -268,12 +270,13 @@ export default function SelectionMenu({ text, position, onClose }) {
         }}
       >
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs text-gray-500">
-            已选择 <span className="font-semibold text-gray-700">{text.length}</span> 字
+          <span className="text-xs text-lab-muted">
+            已选择 <span className="font-semibold text-lab-ink">{text.length}</span> 字
           </span>
           <button
+            type="button"
             onClick={onClose}
-            className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 transition-colors"
+            className="w-5 h-5 flex items-center justify-center rounded text-lab-muted hover:bg-lab-accent-dim hover:text-lab-accent-warm transition-colors"
           >
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 6L6 18M6 6l12 12" />
@@ -286,7 +289,7 @@ export default function SelectionMenu({ text, position, onClose }) {
             <select
               value={selectedProject?.id || ''}
               onChange={(e) => handleProjectChange(projectTree.find(p => p.id === e.target.value))}
-              className="w-full px-3 py-2 text-sm bg-gray-50 rounded-lg border-none outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer appearance-none"
+              className="w-full px-3 py-2 text-sm bg-lab-raised rounded-lg border border-lab-border-subtle outline-none focus-visible:ring-2 focus-visible:ring-lab-accent cursor-pointer appearance-none text-lab-ink"
             >
               <option value="">选择目标项目</option>
               {projectTree.map(project => (
@@ -295,7 +298,7 @@ export default function SelectionMenu({ text, position, onClose }) {
                 </option>
               ))}
             </select>
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-lab-muted">
               <ChevronDown />
             </div>
           </div>
@@ -305,7 +308,7 @@ export default function SelectionMenu({ text, position, onClose }) {
               value={selectedDoc?.id || ''}
               onChange={(e) => setSelectedDoc(documents.find(d => d.id === e.target.value))}
               disabled={!selectedProject}
-              className="w-full px-3 py-2 text-sm bg-gray-50 rounded-lg border-none outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer appearance-none disabled:opacity-50"
+              className="w-full px-3 py-2 text-sm bg-lab-raised rounded-lg border border-lab-border-subtle outline-none focus-visible:ring-2 focus-visible:ring-lab-accent cursor-pointer appearance-none disabled:opacity-50 text-lab-ink"
             >
               <option value="">选择目标文档</option>
               {projectDocs.map(doc => (
@@ -314,34 +317,35 @@ export default function SelectionMenu({ text, position, onClose }) {
                 </option>
               ))}
             </select>
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-lab-muted">
               <ChevronDown />
             </div>
           </div>
           
-          <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+          <label className="flex items-center gap-2 text-xs text-lab-muted cursor-pointer">
             <input
               type="checkbox"
               checked={usePolish}
               onChange={(e) => setUsePolish(e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+              className="w-3.5 h-3.5 rounded border-lab-border text-lab-accent accent-[var(--color-accent-orange)] focus-visible:ring-2 focus-visible:ring-lab-accent"
             />
             <span className="flex items-center gap-1">
-              <Sparkles className="text-yellow-500" />
+              <Sparkles className="text-lab-warning" />
               智能润色后归档
             </span>
           </label>
           
           {autoClassification && (
-            <div className="text-xs text-green-600 bg-green-50 px-2 py-1.5 rounded-lg flex items-center gap-1">
-              <Sparkles className="text-green-500" />
+            <div className="text-xs text-lab-success bg-[var(--color-success-dim)] px-2 py-1.5 rounded-lg flex items-center gap-1 border border-lab-border-subtle">
+              <Sparkles className="text-lab-success" />
               自动识别: {autoClassification.label}
             </div>
           )}
           
           <button
             onClick={() => setShowQuickArchive(!showQuickArchive)}
-            className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 rounded-lg transition-colors flex items-center justify-between"
+            type="button"
+            className="w-full text-left px-3 py-2 text-xs text-lab-muted hover:bg-lab-accent-dim rounded-lg transition-colors flex items-center justify-between"
           >
             <span>快速归档到分类</span>
             <ChevronDown className={`transition-transform ${showQuickArchive ? 'rotate-180' : ''}`} />
@@ -353,7 +357,7 @@ export default function SelectionMenu({ text, position, onClose }) {
                 <select
                   value={selectedCategory || ''}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-gray-50 rounded-lg border-none outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer appearance-none"
+                  className="w-full px-3 py-1.5 text-xs bg-lab-raised rounded-lg border border-lab-border-subtle outline-none focus-visible:ring-2 focus-visible:ring-lab-accent cursor-pointer appearance-none text-lab-ink"
                 >
                   <option value="">选择分类</option>
                   {QUICK_CATEGORIES.map(cat => (
@@ -362,17 +366,18 @@ export default function SelectionMenu({ text, position, onClose }) {
                     </option>
                   ))}
                 </select>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-lab-muted">
                   <ChevronDown />
                 </div>
               </div>
               <button
+                type="button"
                 onClick={handleQuickArchive}
                 disabled={!selectedCategory || !selectedProject}
                 className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
-                  backgroundColor: (selectedCategory && selectedProject) ? '#10B981' : '#E5E7EB',
-                  color: (selectedCategory && selectedProject) ? 'white' : '#9CA3AF'
+                  backgroundColor: selectedCategory && selectedProject ? 'var(--color-success)' : 'var(--color-border-default)',
+                  color: selectedCategory && selectedProject ? 'var(--color-text-inverted)' : 'var(--color-text-muted)',
                 }}
               >
                 <ArchiveIcon />
@@ -382,12 +387,13 @@ export default function SelectionMenu({ text, position, onClose }) {
           )}
           
           <button
+            type="button"
             onClick={handleArchive}
             disabled={!selectedDoc}
             className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
-              backgroundColor: selectedDoc ? '#8B5CF6' : '#E5E7EB',
-              color: selectedDoc ? 'white' : '#9CA3AF'
+              backgroundColor: selectedDoc ? 'var(--color-accent-orange)' : 'var(--color-border-default)',
+              color: selectedDoc ? 'var(--color-text-inverted)' : 'var(--color-text-muted)',
             }}
           >
             <ArchiveIcon />

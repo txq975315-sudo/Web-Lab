@@ -58,14 +58,9 @@ export default function ArchaeologySidebar({ compact = false }) {
 
   if (compact) {
     return (
-      <div
-        className="h-full w-full flex flex-col overflow-hidden"
-        style={{
-          backgroundColor: '#FFFFFF'
-        }}
-      >
+      <div className="h-full w-full flex flex-col overflow-hidden bg-lab-overlay border-r border-lab-border-subtle">
         <div className="px-3 pt-3 pb-1 flex items-center justify-between">
-          <p className="text-[9px] tracking-wide uppercase" style={{ color: '#9CA3AF' }}>
+          <p className="text-[9px] tracking-wide uppercase text-lab-muted">
             考古记录
           </p>
         </div>
@@ -73,7 +68,7 @@ export default function ArchaeologySidebar({ compact = false }) {
         <div className="flex-1 overflow-auto px-2 pb-3">
           {(!archaeologySessions || archaeologySessions.length === 0) && (
             <div className="px-2 py-4 text-center">
-              <p className="text-[10px] text-gray-300">暂无记录</p>
+              <p className="text-[10px] text-lab-faint">暂无记录</p>
             </div>
           )}
 
@@ -85,41 +80,34 @@ export default function ArchaeologySidebar({ compact = false }) {
               <div
                 key={session.id}
                 onClick={() => setActiveArchaeologyId(session.id)}
-                className="px-2 py-1.5 rounded-lg cursor-pointer transition-colors mb-1 group relative"
-                style={{
-                  backgroundColor: isActive ? '#FEF3C7' : 'transparent',
-                  border: isActive ? '1px solid #FCD34D' : '1px solid transparent'
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = '#F9FAFB'
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'
-                }}
+                className={`px-2 py-1.5 rounded-lg cursor-pointer transition-colors mb-1 group relative border ${
+                  isActive
+                    ? 'bg-lab-accent-dim border-lab-accent'
+                    : 'border-transparent hover:bg-lab-raised'
+                }`}
               >
                 <div className="flex items-center justify-between gap-1">
                   <div className="min-w-0 flex-1">
                     <p
-                      className="text-[10px] font-medium truncate"
-                      style={{ color: isActive ? '#92400E' : '#4B5563' }}
+                      className={`text-[10px] font-medium truncate ${isActive ? 'text-lab-accent-warm' : 'text-lab-muted'}`}
                     >
                       #{archaeologySessions.length - index}
                     </p>
                     {itemCount > 0 && (
-                      <span className="text-[8px] text-amber-600">
+                      <span className="text-[8px] text-lab-accent">
                         {itemCount}个项目
                       </span>
                     )}
                   </div>
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation()
                       if (confirm('确定要删除这条考古记录吗？')) {
                         deleteArchaeologySession(session.id)
                       }
                     }}
-                    className="w-4 h-4 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
-                    style={{ color: '#9CA3AF' }}
+                    className="w-4 h-4 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--color-error-dim)] text-lab-muted hover:text-lab-error"
                     title="删除"
                   >
                     <TrashIcon />
@@ -134,26 +122,20 @@ export default function ArchaeologySidebar({ compact = false }) {
   }
 
   return (
-    <div
-      className="h-full w-full flex flex-col overflow-hidden"
-      style={{
-        backgroundColor: '#FFFFFF',
-        borderRight: '1px solid #F3F4F6'
-      }}
-    >
-      <div className="px-4 pt-4 pb-2 flex items-center justify-between border-b border-gray-50">
+    <div className="h-full w-full flex flex-col overflow-hidden bg-lab-overlay border-r border-lab-border-subtle">
+      <div className="px-4 pt-4 pb-2 flex items-center justify-between border-b border-lab-border-subtle">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#D97706' }}>
-            <span className="text-[9px] font-bold" style={{ color: '#FFFFFF' }}>TA</span>
+          <span className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-lab-accent">
+            <span className="text-[9px] font-bold text-[color:var(--color-text-inverted)]">TA</span>
           </span>
-          <h1 className="text-xs font-semibold tracking-tight truncate" style={{ color: '#374151' }}>
+          <h1 className="text-xs font-semibold font-display tracking-tight truncate text-lab-ink">
             对话考古 V2
           </h1>
         </div>
       </div>
 
       <div className="px-4 pt-3 pb-2">
-        <p className="text-[10px] tracking-wide" style={{ color: '#D1D5DB' }}>
+        <p className="text-[10px] tracking-wide text-lab-faint">
           考古来源
         </p>
       </div>
@@ -161,8 +143,8 @@ export default function ArchaeologySidebar({ compact = false }) {
       <div className="flex-1 overflow-auto px-2 pb-4">
         {(!archaeologySessions || archaeologySessions.length === 0) && (
           <div className="px-3 py-6 text-center">
-            <p className="text-[11px] text-gray-400">暂无考古记录</p>
-            <p className="text-[10px] text-gray-300 mt-1">在右侧创建新的考古会话开始分析</p>
+            <p className="text-[11px] text-lab-muted">暂无考古记录</p>
+            <p className="text-[10px] text-lab-faint mt-1">在右侧创建新的考古会话开始分析</p>
           </div>
         )}
 
@@ -174,33 +156,26 @@ export default function ArchaeologySidebar({ compact = false }) {
             <div
               key={session.id}
               onClick={() => setActiveArchaeologyId(session.id)}
-              className="px-2 py-2 rounded-lg cursor-pointer transition-colors mb-1 group"
-              style={{
-                backgroundColor: isActive ? '#FEF3C7' : 'transparent',
-                border: isActive ? '1px solid #FCD34D' : '1px solid transparent'
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) e.currentTarget.style.backgroundColor = '#F9FAFB'
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'
-              }}
+              className={`px-2 py-2 rounded-lg cursor-pointer transition-colors mb-1 group border ${
+                isActive
+                  ? 'bg-lab-accent-dim border-lab-accent'
+                  : 'border-transparent hover:bg-lab-raised'
+              }`}
             >
               <div className="flex items-start justify-between gap-1">
                 <div className="min-w-0 flex-1">
                   <p
-                    className="text-[11px] font-medium truncate"
-                    style={{ color: isActive ? '#92400E' : '#374151' }}
+                    className={`text-[11px] font-medium truncate ${isActive ? 'text-lab-accent-warm' : 'text-lab-ink'}`}
                   >
                     考古 #{(archaeologySessions || []).length - index}：{session.name}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[9px] text-gray-400 flex items-center gap-0.5">
+                    <span className="text-[9px] text-lab-muted flex items-center gap-0.5">
                       <ClockIcon />
                       {formatDate(session.createdAt)}
                     </span>
                     {itemCount > 0 && (
-                      <span className="text-[9px] text-amber-600 flex items-center gap-0.5">
+                      <span className="text-[9px] text-lab-accent flex items-center gap-0.5">
                         <ItemCountIcon />
                         {itemCount} 个项目
                       </span>
@@ -208,12 +183,12 @@ export default function ArchaeologySidebar({ compact = false }) {
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation()
                     deleteArchaeologySession(session.id)
                   }}
-                  className="w-5 h-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
-                  style={{ color: '#9CA3AF' }}
+                  className="w-5 h-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--color-error-dim)] text-lab-muted hover:text-lab-error"
                   title="删除"
                 >
                   <TrashIcon />
@@ -224,20 +199,11 @@ export default function ArchaeologySidebar({ compact = false }) {
         })}
       </div>
 
-      <div className="px-3 py-3 border-t border-gray-100">
+      <div className="px-3 py-3 border-t border-lab-border-subtle bg-lab-base">
         <button
+          type="button"
           onClick={() => switchLabMode('live')}
-          className="w-full py-2 rounded-lg text-[11px] font-medium transition-colors flex items-center justify-center gap-1.5"
-          style={{
-            backgroundColor: '#F3F4F6',
-            color: '#6B7280'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#E5E7EB'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#F3F4F6'
-          }}
+          className="w-full py-2 rounded-lg text-[11px] font-medium transition-colors flex items-center justify-center gap-1.5 bg-lab-raised text-lab-muted border border-lab-border-subtle hover:bg-lab-accent-dim hover:text-lab-ink"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <path d="M7.5 3L4.5 6L7.5 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
