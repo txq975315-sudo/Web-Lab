@@ -47,8 +47,8 @@
 
 ## 5. 全站备份 / 导入
 
-- **导出/导入** 由 `src/utils/labDataSync.js` 对一组 **`LAB_LOCAL_STORAGE_KEYS`** 做快照。  
-- 增删与项目树、考古、设置相关的 **新 localStorage 键** 时，**须同步更新** `LAB_LOCAL_STORAGE_KEYS`，否则备份会漏数据。
+- **导出/导入** 由 `src/utils/labDataSync.js` 对 **`LAB_LOCAL_STORAGE_KEYS`** 做快照（键列表含：`kairos-project-tree`、`kairos-chat-sessions`、`kairos-ai-config`、`kairos-archaeology-sessions` 等完整集合）。  
+- 在 **`LabContext`**、**`SettingsModal`**、**`dataStore`** 等处 **新增 `localStorage` 键名** 时，**必须**在同一提交内更新 **`labDataSync.js` 中的数组** 与本文档，否则导出会漏键、导入无法清空旧键。
 
 ---
 

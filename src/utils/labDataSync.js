@@ -1,23 +1,41 @@
 /**
  * Thinking Lab — 跨环境同步 localStorage（Chrome / Trae 内嵌预览等互不共享存储）
+ *
+ * 【维护约定】以下键须覆盖应用实际读写的全部 kairos-* 持久化项：
+ * - LabContext.jsx → useLocalStorage(...)
+ * - SettingsModal / aiApi → kairos-ai-config
+ * - dataStore → kairos-lab-data、kairos-lab-settings、kairos-archaeology-sessions
+ *
+ * 新增 localStorage 键时：在此追加同一字符串 + 更新 docs/DATA_CONTRACT.md。
  */
 
+/** @type {readonly string[]} */
 export const LAB_LOCAL_STORAGE_KEYS = [
+  // dataStore：扁平旧库与考古
   'kairos-lab-data',
   'kairos-lab-settings',
+  'kairos-archaeology-sessions',
+
+  // LabContext：工作台状态
   'kairos-active-lab-tab',
   'kairos-active-project',
   'kairos-project-tree',
   'kairos-constitution',
   'kairos-recent-documents',
   'kairos-lab-mode',
-  'kairos-archaeology-sessions',
   'kairos-active-archaeology-id',
   'kairos-expert-mode',
   'kairos-all-history-messages',
+  'kairos-chat-sessions',
   'kairos-current-session-id',
   'kairos-project-memories',
-  'kairos-ai-config'
+
+  // SettingsModal / aiApi
+  'kairos-ai-config',
+
+  // hooks/useLocalStorage STORAGE_KEYS 中的遗留键（旧版可能仍有数据，导入导出保留）
+  'kairos-archives',
+  'kairos-archaeology'
 ]
 
 const EXPORT_MARK = 'thinkingLabExport'
