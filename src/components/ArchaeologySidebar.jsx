@@ -9,7 +9,7 @@ function ClockIcon() {
   )
 }
 
-function DecisionCountIcon() {
+function ItemCountIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
       <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1" />
@@ -44,6 +44,18 @@ export default function ArchaeologySidebar({ compact = false }) {
     switchLabMode
   } = useLab()
 
+  const getItemCount = (session) => {
+    if (!session) return 0
+    const analysis = session.analysis || {}
+    return (
+      (analysis.timeline?.length || 0) +
+      (analysis.turningPoints?.length || 0) +
+      (analysis.blindSpots?.length || 0) +
+      (analysis.assumptions?.length || 0) +
+      (analysis.assets?.length || 0)
+    )
+  }
+
   if (compact) {
     return (
       <div
@@ -59,15 +71,15 @@ export default function ArchaeologySidebar({ compact = false }) {
         </div>
 
         <div className="flex-1 overflow-auto px-2 pb-3">
-          {archaeologySessions.length === 0 && (
+          {(!archaeologySessions || archaeologySessions.length === 0) && (
             <div className="px-2 py-4 text-center">
               <p className="text-[10px] text-gray-300">暂无记录</p>
             </div>
           )}
 
-          {archaeologySessions.map((session, index) => {
+          {(archaeologySessions || []).map((session, index) => {
             const isActive = activeArchaeologyId === session.id
-            const decisionCount = session.decisions?.length || 0
+            const itemCount = getItemCount(session)
 
             return (
               <div
@@ -93,9 +105,9 @@ export default function ArchaeologySidebar({ compact = false }) {
                     >
                       #{archaeologySessions.length - index}
                     </p>
-                    {decisionCount > 0 && (
+                    {itemCount > 0 && (
                       <span className="text-[8px] text-amber-600">
-                        {decisionCount}个决策
+                        {itemCount}个项目
                       </span>
                     )}
                   </div>
@@ -135,7 +147,7 @@ export default function ArchaeologySidebar({ compact = false }) {
             <span className="text-[9px] font-bold" style={{ color: '#FFFFFF' }}>TA</span>
           </span>
           <h1 className="text-xs font-semibold tracking-tight truncate" style={{ color: '#374151' }}>
-            对话考古
+            对话考古 V2
           </h1>
         </div>
       </div>
@@ -147,16 +159,16 @@ export default function ArchaeologySidebar({ compact = false }) {
       </div>
 
       <div className="flex-1 overflow-auto px-2 pb-4">
-        {archaeologySessions.length === 0 && (
+        {(!archaeologySessions || archaeologySessions.length === 0) && (
           <div className="px-3 py-6 text-center">
             <p className="text-[11px] text-gray-400">暂无考古记录</p>
-            <p className="text-[10px] text-gray-300 mt-1">在右侧粘贴对话记录开始分析</p>
+            <p className="text-[10px] text-gray-300 mt-1">在右侧创建新的考古会话开始分析</p>
           </div>
         )}
 
-        {archaeologySessions.map((session, index) => {
+        {(archaeologySessions || []).map((session, index) => {
           const isActive = activeArchaeologyId === session.id
-          const decisionCount = session.decisions?.length || 0
+          const itemCount = getItemCount(session)
 
           return (
             <div
@@ -180,17 +192,17 @@ export default function ArchaeologySidebar({ compact = false }) {
                     className="text-[11px] font-medium truncate"
                     style={{ color: isActive ? '#92400E' : '#374151' }}
                   >
-                    考古 #{archaeologySessions.length - index}：{session.title}
+                    考古 #{(archaeologySessions || []).length - index}：{session.name}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[9px] text-gray-400 flex items-center gap-0.5">
                       <ClockIcon />
-                      {formatDate(session.analyzedAt)}
+                      {formatDate(session.createdAt)}
                     </span>
-                    {decisionCount > 0 && (
+                    {itemCount > 0 && (
                       <span className="text-[9px] text-amber-600 flex items-center gap-0.5">
-                        <DecisionCountIcon />
-                        {decisionCount} 个决策
+                        <ItemCountIcon />
+                        {itemCount} 个项目
                       </span>
                     )}
                   </div>

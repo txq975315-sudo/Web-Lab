@@ -1,8 +1,9 @@
 import { useLab } from '../context/LabContext'
 import { useState, useRef, useEffect } from 'react'
 import SelectionMenu from './SelectionMenu'
+import ChatHistorySidebar from './ChatHistorySidebar'
 import { streamChat, chatComplete } from '../utils/aiApi'
-import { LIVE_LAB_PROMPT, ARCHAEOLOGY_PROMPT } from '../config/aiPrompts'
+import { buildLiveLabSystemPrompt, ARCHAEOLOGY_PROMPT } from '../config/aiPrompts'
 
 const BACKGROUNDS = [
   '/backgrounds/bg-1.jpg',
@@ -86,7 +87,7 @@ function DragToolbar({ selectedText, position, onClose, messageId }) {
   )
 }
 
-function LiveLab({ messages, setMessages, inputValue, setInputValue, handleTextSelect, historyMessages, viewingHistorySessionId, setViewingHistorySessionId, activeProjectId, saveMessageToHistory }) {
+function LiveLab({ messages, setMessages, inputValue, setInputValue, handleTextSelect, historyMessages, viewingHistorySessionId, setViewingHistorySessionId, activeProjectId, saveMessageToHistory, setCurrentSessionId, currentSessionId }) {
   const { projectTree } = useLab()
   const messagesRef = useRef(null)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -112,7 +113,7 @@ function LiveLab({ messages, setMessages, inputValue, setInputValue, handleTextS
     }
 
     setMessages(prev => [...prev, userMessage])
-    saveMessageToHistory(activeProjectId, userMessage)
+    saveMessageToHistory(userMessage)
     setInputValue('')
     setIsStreaming(true)
 
@@ -135,9 +136,11 @@ function LiveLab({ messages, setMessages, inputValue, setInputValue, handleTextS
         content: m.content
       }))
 
+    const systemPrompt = buildLiveLabSystemPrompt(activeProject || {}, expertMode)
+
     await streamChat(
       [
-        { role: 'system', content: LIVE_LAB_PROMPT },
+        { role: 'system', content: systemPrompt },
         ...chatMessages,
         { role: 'user', content: userMessageContent }
       ],
@@ -154,19 +157,21 @@ function LiveLab({ messages, setMessages, inputValue, setInputValue, handleTextS
         
         const warnings = []
         
-        const hasSectionHeaders = /###\s*[1234]\./.test(fullText)
-        if (!hasSectionHeaders) {
-          warnings.push('AI 未遵循格式约束（缺少四维模块标题），请重试')
-        }
-        
-        const hasFatalQuestion = /\*\*致命追问：\*\*/.test(fullText)
-        if (!hasFatalQuestion) {
-          warnings.push('AI 未包含致命追问，请重试')
-        }
-        
-        const hasJsonBlock = /```json/.test(fullText)
-        if (!hasJsonBlock) {
-          warnings.push('未提取到结构化数据（JSON）')
+        if (expertMode === 'pressure') {
+          const hasSectionHeaders = /###\s*[1234]\./.test(fullText)
+          if (!hasSectionHeaders) {
+            warnings.push('AI 未遵循格式约束（缺少四维模块标题），请重试')
+          }
+          
+          const hasFatalQuestion = /\*\*致命追问：\*\*/.test(fullText)
+          if (!hasFatalQuestion) {
+            warnings.push('AI 未包含致命追问，请重试')
+          }
+          
+          const hasJsonBlock = /```json/.test(fullText)
+          if (!hasJsonBlock) {
+            warnings.push('未提取到结构化数据（JSON）')
+          }
         }
         
         if (warnings.length > 0) {
@@ -174,7 +179,7 @@ function LiveLab({ messages, setMessages, inputValue, setInputValue, handleTextS
           console.warn('格式校验警告:', warnings)
         }
         
-        saveMessageToHistory(activeProjectId, completedMessage)
+        saveMessageToHistory(completedMessage)
         
         try {
           const jsonMatch = fullText.match(/```json\s*([\s\S]*?)```/)
@@ -231,9 +236,9 @@ function LiveLab({ messages, setMessages, inputValue, setInputValue, handleTextS
             {viewingHistorySessionId ? '该会话暂无消息' : '暂无对话记录'}
           </div>
         ) : (
-          displayMessages.map(message => (
+          displayMessages.map((message, msgIndex) => (
             <div
-              key={message.id}
+              key={message.id != null && String(message.id) !== '' ? String(message.id) : `msg-fallback-${msgIndex}`}
               data-message-id={message.id}
               className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} ${message.type === 'system' ? 'justify-center' : ''}`}
             >
@@ -322,7 +327,7 @@ function ArchaeologyLab() {
   const [pasteText, setPasteText] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
 
-  const activeSession = archaeologySessions.find(s => s.id === activeArchaeologyId)
+  const activeSession = archaeologySessions?.find(s => s.id === activeArchaeologyId)
 
   const handleScan = async () => {
     if (!pasteText.trim()) return
@@ -559,12 +564,12 @@ function MemoryCard({ projectId, getMemorySummary }) {
 }
 
 export default function LabPanel() {
-  const { labMode, switchLabMode, projectTree, activeProjectId, allHistoryMessages, viewingHistorySessionId, setViewingHistorySessionId, saveMessageToHistory, startNewSession, expertMode, switchExpertMode, labMessageToSend, autoSendLabMessage, getMemorySummary } = useLab()
+  const { labMode, switchLabMode, projectTree, activeProjectId, allHistoryMessages, viewingHistorySessionId, setViewingHistorySessionId, saveMessageToHistory, startNewSession, expertMode, switchExpertMode, labMessageToSend, autoSendLabMessage, getMemorySummary, currentSessionId, setCurrentSessionId } = useLab()
   const [inputValue, setInputValue] = useState('')
   const [messages, setMessages] = useState([
-    { id: 1, type: 'system', content: '欢迎来到 Thinking Lab，开始你的商业化思维练习吧！', time: '刚刚' },
-    { id: 2, type: 'user', content: '什么是商业化思维？', time: '10:30' },
-    { id: 3, type: 'assistant', content: '商业化思维是一种将创意和价值转化为可持续商业模式的思考方式。它要求我们从市场、用户、竞争和财务等多个维度系统性地分析商业机会，并将碎片化的洞察转化为可执行的商业策略。', time: '10:31' }
+    { id: 'seed-system', type: 'system', content: '欢迎来到 Thinking Lab，开始你的商业化思维练习吧！', time: '刚刚' },
+    { id: 'seed-user-demo', type: 'user', content: '什么是商业化思维？', time: '10:30' },
+    { id: 'seed-assistant-demo', type: 'assistant', content: '商业化思维是一种将创意和价值转化为可持续商业模式的思考方式。它要求我们从市场、用户、竞争和财务等多个维度系统性地分析商业机会，并将碎片化的洞察转化为可执行的商业策略。', time: '10:31' }
   ])
   const [selectionMenu, setSelectionMenu] = useState(null)
   
@@ -628,125 +633,133 @@ export default function LabPanel() {
   }, [labMessageToSend, autoSendLabMessage])
 
   return (
-    <div
-      className="h-full flex flex-col rounded-2xl overflow-hidden relative"
-      style={{
-        minWidth: 0,
-        backgroundImage: `url(${currentBg})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        backgroundColor: '#667eea'
-      }}
-    >
+    <div className="h-full flex rounded-2xl overflow-hidden">
+      {/* 左侧主要内容 */}
       <div
-        className="absolute inset-0 rounded-2xl pointer-events-none"
+        className="flex-1 flex flex-col relative"
         style={{
-          background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.75) 0%, rgba(118, 75, 162, 0.75) 50%, rgba(240, 147, 251, 0.7) 100%)'
+          minWidth: 0,
+          backgroundImage: `url(${currentBg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundColor: '#667eea'
         }}
-      />
-
-      <div className="relative flex justify-center pt-6 pb-4 z-10">
+      >
         <div
-          className="relative flex items-center rounded-2xl"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundColor: 'rgba(255,255,255,0.15)',
-            backdropFilter: 'blur(10px)',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-            padding: '3px',
-            width: '240px',
-            height: '30px'
+            background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.75) 0%, rgba(118, 75, 162, 0.75) 50%, rgba(240, 147, 251, 0.7) 100%)'
           }}
-        >
+        />
+
+        <div className="relative flex justify-center pt-6 pb-4 z-10">
           <div
-            className="absolute rounded-xl transition-all duration-400 ease-out"
+            className="relative flex items-center rounded-2xl"
             style={{
-              top: '3px',
-              left: '3px',
-              width: 'calc(50% - 3px)',
-              height: '24px',
-              backgroundColor: '#FFFFFF',
-              transform: `translateX(${activeIndex * 100}%)`,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-              transition: 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+              padding: '3px',
+              width: '240px',
+              height: '30px'
             }}
-          />
-
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => switchLabMode(tab.id)}
-              className="relative z-10 flex-1 h-full flex items-center justify-center text-sm font-medium rounded-xl transition-colors duration-300"
+          >
+            <div
+              className="absolute rounded-xl transition-all duration-400 ease-out"
               style={{
-                color: labMode === tab.id ? '#1F2937' : 'rgba(255,255,255,0.8)'
+                top: '3px',
+                left: '3px',
+                width: 'calc(50% - 3px)',
+                height: '24px',
+                backgroundColor: '#FFFFFF',
+                transform: `translateX(${activeIndex * 100}%)`,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                transition: 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)'
               }}
+            />
+
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => switchLabMode(tab.id)}
+                className="relative z-10 flex-1 h-full flex items-center justify-center text-sm font-medium rounded-xl transition-colors duration-300"
+                style={{
+                  color: labMode === tab.id ? '#1F2937' : 'rgba(255,255,255,0.8)'
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="relative flex justify-center pb-2 z-10">
+          <div
+            className="flex items-center gap-1 rounded-lg px-2 py-1"
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(8px)'
+            }}
+          >
+            <span className="text-[10px] text-white/60 mr-1">模式:</span>
+            <button
+              onClick={() => switchExpertMode('pressure')}
+              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                expertMode === 'pressure' 
+                  ? 'bg-purple-500 text-white' 
+                  : 'text-white/70 hover:text-white hover:bg-white/10'
+              }`}
             >
-              {tab.label}
+              压力测试
             </button>
-          ))}
+            <button
+              onClick={() => switchExpertMode('guided')}
+              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                expertMode === 'guided' 
+                  ? 'bg-emerald-500 text-white' 
+                  : 'text-white/70 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              成长教练
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="relative flex justify-center pb-2 z-10">
-        <div
-          className="flex items-center gap-1 rounded-lg px-2 py-1"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.1)',
-            backdropFilter: 'blur(8px)'
-          }}
-        >
-          <span className="text-[10px] text-white/60 mr-1">专家模式:</span>
-          <button
-            onClick={() => switchExpertMode('pressure')}
-            className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
-              expertMode === 'pressure' 
-                ? 'bg-purple-500 text-white' 
-                : 'text-white/70 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            压力测试
-          </button>
-          <button
-            onClick={() => switchExpertMode('guided')}
-            className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
-              expertMode === 'guided' 
-                ? 'bg-emerald-500 text-white' 
-                : 'text-white/70 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            深度引导
-          </button>
+        <MemoryCard projectId={activeProjectId} getMemorySummary={getMemorySummary} />
+
+        <div className="relative flex-1 flex flex-col overflow-hidden transition-opacity duration-200" style={{ opacity: 1 }}>
+          {labMode === 'live' ? (
+            <LiveLab
+              messages={messages}
+              setMessages={setMessages}
+              inputValue={inputValue}
+              setInputValue={setInputValue}
+              handleTextSelect={handleTextSelect}
+              historyMessages={historyMessages}
+              viewingHistorySessionId={viewingHistorySessionId}
+              setViewingHistorySessionId={setViewingHistorySessionId}
+              activeProjectId={activeProjectId}
+              saveMessageToHistory={saveMessageToHistory}
+              currentSessionId={currentSessionId}
+              setCurrentSessionId={setCurrentSessionId}
+            />
+          ) : (
+            <ArchaeologyLab />
+          )}
         </div>
-      </div>
 
-      <MemoryCard projectId={activeProjectId} getMemorySummary={getMemorySummary} />
-
-      <div className="relative flex-1 flex flex-col overflow-hidden transition-opacity duration-200" style={{ opacity: 1 }}>
-        {labMode === 'live' ? (
-          <LiveLab
-            messages={messages}
-            setMessages={setMessages}
-            inputValue={inputValue}
-            setInputValue={setInputValue}
-            handleTextSelect={handleTextSelect}
-            historyMessages={historyMessages}
-            viewingHistorySessionId={viewingHistorySessionId}
-            setViewingHistorySessionId={setViewingHistorySessionId}
-            activeProjectId={activeProjectId}
-            saveMessageToHistory={saveMessageToHistory}
+        {selectionMenu && (
+          <SelectionMenu
+            text={selectionMenu.text}
+            position={selectionMenu.position}
+            onClose={() => setSelectionMenu(null)}
           />
-        ) : (
-          <ArchaeologyLab />
         )}
       </div>
 
-      {selectionMenu && (
-        <SelectionMenu
-          text={selectionMenu.text}
-          position={selectionMenu.position}
-          onClose={() => setSelectionMenu(null)}
-        />
-      )}
+      {/* 右侧历史记录侧边栏 - 只在实时演练模式显示 */}
+      {labMode === 'live' && <ChatHistorySidebar setMessages={setMessages} setInputValue={setInputValue} />}
     </div>
   )
 }

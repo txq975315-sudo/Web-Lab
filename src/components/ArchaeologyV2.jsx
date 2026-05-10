@@ -1,6 +1,6 @@
 import { useLab } from '../context/LabContext'
 import { useState, useEffect } from 'react'
-import { archaeologyStore, store } from '../utils/dataStore'
+import { archaeologyStore } from '../utils/dataStore'
 import ArchaeologyInputArea from './ArchaeologyInputArea'
 import ArchaeologyReportView from './ArchaeologyReportView'
 

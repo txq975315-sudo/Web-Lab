@@ -65,6 +65,11 @@ const TEMPLATES = {
     module: '02 市场与用户洞察',
     fields: [
       { key: 'slogan', label: '一句话宣言', type: 'text', required: true, placeholder: '如：为Android重度用户打造的12区建筑感专注空间' },
+      { key: 'description', label: '完整描述', type: 'textarea', placeholder: '详细描述产品是什么' },
+      { key: 'targetUser', label: '目标用户', type: 'textarea', placeholder: '你的目标用户是谁' },
+      { key: 'differentiation', label: '差异化', type: 'textarea', placeholder: '你的产品有什么不同' },
+      { key: 'vibe', label: '产品情绪', type: 'text', placeholder: '描述产品的气质和调性' },
+      { key: 'antiWhat', label: '明确反对', type: 'textarea', placeholder: '明确你的产品反对什么' },
       { key: 'productService', label: '产品与服务', type: 'textarea', placeholder: '你提供什么？功能、特性、服务' },
       { key: 'painRelievers', label: '痛点消除', type: 'textarea', placeholder: '你消除了客户哪些痛点？' },
       { key: 'gainCreators', label: '收益创造', type: 'textarea', placeholder: '你为客户创造了哪些收益？' },
@@ -371,6 +376,72 @@ const MODULE_TO_CATEGORY_MAP = {
   '06 执行路线图': 'roadmap'
 }
 
+/** 与 LabContext 新建项目时的分类节点 id 约定一致：`${projectId}-cat-${suffix}` */
+const CATEGORY_TYPE_TO_NODE_SUFFIX = {
+  constitution: 'cat-constitution',
+  market: 'cat-market',
+  strategy: 'cat-strategy',
+  decision: 'cat-decision',
+  antifragile: 'cat-antifragile',
+  roadmap: 'cat-roadmap'
+}
+
+/**
+ * 由项目 id + 文档模板 key 推导分类父节点 id（用于绕过异步 state 时直接向树挂载）。
+ */
+export function getProjectCategoryParentId(projectId, docType) {
+  const tmpl = TEMPLATES[docType]
+  if (!tmpl?.module) {
+    return `${projectId}-cat-market`
+  }
+  const categoryType = MODULE_TO_CATEGORY_MAP[tmpl.module]
+  const suffix = categoryType ? CATEGORY_TYPE_TO_NODE_SUFFIX[categoryType] : 'cat-market'
+  return `${projectId}-${suffix}`
+}
+
+/**
+ * 考古「建议模板」文案 → 标准模板 key（用于写入 projectTree）。
+ */
+export function resolveArchaeologyDocTypeHint(hint) {
+  const raw = (hint || '').trim()
+  if (!raw) return 'value_proposition'
+  let direct = raw.toLowerCase().replace(/-/g, '_')
+  if (direct === 'lean_canvas') direct = 'canvas'
+  if (TEMPLATES[direct] && direct !== 'blank') return direct
+
+  const h = raw.toLowerCase()
+  const rules = [
+    [/persona|用户画像/, 'persona'],
+    [/画布|商业画布|lean/, 'canvas'],
+    [/价值主张|value\s*proposition/, 'value_proposition'],
+    [/竞品/, 'competitive_analysis'],
+    [/市场规模|tam|sam/, 'market_sizing'],
+    [/旅程|journey/, 'journey_map'],
+    [/prd|需求文档|产品需求/, 'prd'],
+    [/gtm|上市/, 'gtm'],
+    [/增长飞轮|growth/, 'growth_loop'],
+    [/北极星/, 'north_star'],
+    [/单位经济|unit\s*econom/, 'unit_economics'],
+    [/决策日志|decision\s*log/, 'decision_log'],
+    [/决策回顾/, 'decision_review'],
+    [/premortem|事前验尸|死亡预测/, 'premortem'],
+    [/壁垒|护城河|moat/, 'moat'],
+    [/依赖风险|外部依赖/, 'dependency_risk'],
+    [/mvp/, 'mvp_scope'],
+    [/里程碑/, 'milestones'],
+    [/假设/, 'hypothesis_tracker'],
+    [/埋点|analytics/, 'analytics_plan'],
+    [/资源|预算/, 'resource_plan'],
+    [/待办|行动项/, 'action_items'],
+    [/约束|宪法/, 'constraint'],
+    [/否决|墓地|graveyard/, 'graveyard']
+  ]
+  for (const [re, key] of rules) {
+    if (re.test(h) && TEMPLATES[key]) return key
+  }
+  return 'value_proposition'
+}
+
 function getModuleByTemplateType(type) {
   const tmpl = TEMPLATES[type]
   return tmpl ? tmpl.module : null
@@ -487,6 +558,8 @@ if (typeof module !== 'undefined' && module.exports) {
     getTemplateFields,
     createDefaultFields,
     getForcedCategory,
+    getProjectCategoryParentId,
+    resolveArchaeologyDocTypeHint,
     MODULE_ORDER
   }
 }

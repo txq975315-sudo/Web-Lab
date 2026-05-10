@@ -23,7 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment variables
+# Environment variables（示例见 .env.example）
 .env
 .env.local
 .env.development.local

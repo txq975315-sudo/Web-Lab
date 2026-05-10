@@ -6,7 +6,7 @@ import ArchaeologySidebar from './components/ArchaeologySidebar'
 import ArchaeologyV2 from './components/ArchaeologyV2'
 import CommandPalette from './components/CommandPalette'
 import SettingsModal from './components/SettingsModal'
-import { store, initStore } from './utils/dataStore'
+import { initStore } from './utils/dataStore'
 import { useState, useEffect } from 'react'
 
 function AppContent() {
@@ -85,7 +85,7 @@ export default function App() {
   useEffect(() => {
     initStore()
     if (import.meta.env.DEV) {
-      console.debug('[Thinking Lab] dataStore init OK, projects:', store.getProjects().length)
+      console.debug('[Thinking Lab] init OK — 项目数据以 LabContext projectTree（kairos-project-tree）为准')
     }
   }, [])
 

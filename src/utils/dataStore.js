@@ -8,10 +8,9 @@
  *   4. 工具函数：模块查询、文档大纲生成
  * 
  * 使用方式：
- *   import { store, MODULE_MAP, TEMPLATE_LIST } from './dataStore.js';
- *   store.createProject('Kairos App');
- *   store.createDocument('Kairos App', 'persona', { name: '...', ... });
- *   const docs = store.getDocumentsByModule('Kairos App', '02 市场与用户洞察');
+ *   import { MODULE_MAP, TEMPLATE_LIST } from './dataStore.js';
+ *   文档与项目请以 LabContext 的 projectTree 为唯一真相（createProject / createDocument）。
+ *   扁平结构 store.* CRUD 已废弃写入，仅保留兼容读取与考古 settings；勿在新代码中调用 store.createProject / store.createDocument。
  */
 
 // ============================================================
@@ -184,11 +183,19 @@ function _formatDate(iso) {
 }
 
 // ============================================================
+// 3.5 树形结构持久化（统一数据层）
+// ============================================================
+
+const PROJECT_TREE_KEY = 'kairos-project-tree'
+const ACTIVE_PROJECT_KEY = 'kairos-active-project'
+const EXPERT_MODE_KEY = 'kairos-expert-mode'
+
+// ============================================================
 // 4. Store API
 // ============================================================
 
 const store = {
-  // --- 读取全部数据 ---
+  // --- 读取全部数据（旧版扁平结构，@deprecated） ---
   _getData() {
     return _readStorage(STORAGE_KEY, { projects: [], activeProjectId: null, documents: {} });
   },
@@ -197,7 +204,47 @@ const store = {
     return _writeStorage(STORAGE_KEY, data);
   },
 
-  // --- 项目 CRUD ---
+  // --- 树形结构持久化（新版统一数据层） ---
+  saveProjectTree(tree) {
+    return _writeStorage(PROJECT_TREE_KEY, tree);
+  },
+
+  loadProjectTree() {
+    try {
+      const raw = localStorage.getItem(PROJECT_TREE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveActiveProjectId(id) {
+    return _writeStorage(ACTIVE_PROJECT_KEY, id);
+  },
+
+  loadActiveProjectId() {
+    try {
+      const raw = localStorage.getItem(ACTIVE_PROJECT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveExpertMode(mode) {
+    return _writeStorage(EXPERT_MODE_KEY, mode);
+  },
+
+  loadExpertMode() {
+    try {
+      const raw = localStorage.getItem(EXPERT_MODE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  // --- 项目 CRUD（旧版扁平结构，@deprecated — 仅用于迁移兼容） ---
   getProjects() {
     return this._getData().projects;
   },
@@ -346,26 +393,8 @@ const settingsStore = {
 // ============================================================
 
 function initStore() {
-  const data = store._getData();
-  if (data.projects.length === 0) {
-    const proj = store.createProject('Kairos Thinking Lab', '我的个人产品决策系统');
-    // 可选：预置一些示例数据
-    store.createDocument(proj.id, 'value_proposition', {
-      slogan: '基于 LLM 的个人产品决策辅助系统',
-      productService: '将碎片化思考转化为结构化决策资产',
-      painRelievers: '想法不再散落，决策有迹可循',
-      gainCreators: '培养商业化和产品化思维'
-    }, '核心定位 — 价值主张画布');
-    store.createDocument(proj.id, 'persona', {
-      name: '独立 PM / 创业者',
-      demographics: '25-35岁，有技术背景，正在独立做项目',
-      behaviors: '和多个 AI 对话后结论散落各处',
-      goals: '把想法变成可验证的商业假设',
-      painPoints: '做决策时忘记之前为什么否决了某个方案',
-      scenarios: '有一个模糊想法，需要结构化梳理'
-    }, '用户画像 — 独立 PM');
-  }
-  return data;
+  // 唯一真相：kairos-project-tree（LabContext）。不再向 kairos-lab-data 写入种子数据，避免与侧边栏项目树分裂。
+  return store._getData();
 }
 
 // 初始化由 App.jsx 在 useEffect 中调用（确保在浏览器环境、React 挂载后执行）

@@ -376,10 +376,10 @@ ${selectedDoc.content || JSON.stringify(selectedDoc.fields || {}, null, 2)}
 
     setLabMessageToSend(messageContent)
     setAutoSendLabMessage(true)
-    setActiveLabTab('practice')
+    setActiveLabTab('live')
     
-    if (labMode !== 'practice') {
-      setLabMode('practice')
+    if (labMode !== 'live') {
+      setLabMode('live')
     }
   }
 

@@ -1,14 +1,26 @@
 import { useState } from 'react'
-import { archaeologyStore, store } from '../utils/dataStore'
+import { useLab } from '../context/LabContext'
+import {
+  createDefaultFields,
+  getProjectCategoryParentId,
+  resolveArchaeologyDocTypeHint
+} from '../config/templates'
 
 export default function ArchaeologyReportView({ session, onBack, onRefresh }) {
   const [archiving, setArchiving] = useState({})
+  const {
+    projectTree,
+    activeProjectId,
+    createProject,
+    createDocument,
+    openDocument,
+    switchLabMode
+  } = useLab()
 
-  // 生成报告内容
-  const generateReportContent = () => {
+  function generateReportContent() {
     let content = `# ${session.name}\n\n`
     content += `## 项目演进时间轴\n\n`
-    
+
     session.analysis?.timeline?.filter(i => i.status === 'confirmed').forEach(item => {
       content += `- **${item.stage}** (${item.date}): ${item.decision}\n`
     })
@@ -41,51 +53,49 @@ export default function ArchaeologyReportView({ session, onBack, onRefresh }) {
     return content
   }
 
-  // 归档单个知识资产
   const handleArchiveAsset = async (asset) => {
     setArchiving(prev => ({ ...prev, [asset.id]: true }))
     try {
-      // 获取第一个项目，如果没有则创建
-      let projects = store.getProjects()
-      let projectId
-      
-      if (projects.length === 0) {
-        const newProject = store.createProject('决策复盘项目', '从考古对话中提取的项目')
-        projectId = newProject.id
-      } else {
-        projectId = projects[0].id
+      let projectId = activeProjectId
+      if (!projectTree?.length) {
+        projectId = createProject('决策复盘项目')
+      } else if (!projectId || !projectTree.some((p) => p.id === projectId)) {
+        projectId = projectTree[0].id
       }
 
-      // 根据建议的模板选择合适的模板
-      let templateKey = 'value_proposition' // 默认
-      if (asset.suggestedTemplate) {
-        const lower = asset.suggestedTemplate.toLowerCase()
-        if (lower.includes('persona')) templateKey = 'persona'
-        else if (lower.includes('value')) templateKey = 'value_proposition'
-        else if (lower.includes('canvas')) templateKey = 'lean_canvas'
-      }
+      const docType = resolveArchaeologyDocTypeHint(asset.suggestedTemplate)
+      const titleSlice = (asset.content || '').slice(0, 36)
+      const name = `[考古] ${titleSlice}${(asset.content || '').length > 36 ? '…' : ''}`
+      const meta =
+        `来源：考古会话「${session.name}」\n会话 ID：${session.id}\n资产类型：${asset.type || '—'}\n建议模板：${asset.suggestedTemplate || docType}\n\n---\n\n`
+      const body = typeof asset.content === 'string' ? asset.content : JSON.stringify(asset.content, null, 2)
 
-      // 创建文档
-      const docData = {
-        content: asset.content,
-        type: asset.type || 'insight',
-        source: '考古对话',
-        sourceSession: session.id
-      }
+      const parentId = getProjectCategoryParentId(projectId, docType)
+      const docId = createDocument(
+        parentId,
+        {
+          name,
+          docType,
+          typeKey: docType,
+          fields: createDefaultFields(docType),
+          content: meta + body
+        },
+        { trustParentId: true }
+      )
 
-      store.createDocument(projectId, templateKey, docData, `[考古] ${asset.content.slice(0, 30)}...`)
-      
-      alert('归档成功！')
+      switchLabMode('live')
+      openDocument(docId)
+
+      alert('已归档到当前项目树（左侧栏可见）')
       onRefresh?.()
     } catch (e) {
       console.error('归档失败:', e)
-      alert('归档失败: ' + e.message)
+      alert('归档失败: ' + (e.message || String(e)))
     } finally {
       setArchiving(prev => ({ ...prev, [asset.id]: false }))
     }
   }
 
-  // 导出为Markdown
   const handleExportMarkdown = () => {
     const content = generateReportContent()
     const blob = new Blob([content], { type: 'text/markdown' })
@@ -123,7 +133,6 @@ export default function ArchaeologyReportView({ session, onBack, onRefresh }) {
 
       <div className="flex-1 overflow-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 左侧：报告预览 */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-3">报告预览</h3>
             <div className="bg-white border border-gray-200 rounded-lg p-4">
@@ -133,12 +142,14 @@ export default function ArchaeologyReportView({ session, onBack, onRefresh }) {
             </div>
           </div>
 
-          {/* 右侧：知识资产归档 */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-3">
               知识资产归档 ({confirmedAssets.length})
             </h3>
-            
+            <p className="text-xs text-gray-500 mb-3">
+              归档写入左侧「项目树」（当前活跃项目）。若无项目会自动新建「决策复盘项目」。
+            </p>
+
             {confirmedAssets.length === 0 ? (
               <div className="text-center py-8 text-gray-400 text-sm">
                 还没有确认的知识资产，请先确认一些条目

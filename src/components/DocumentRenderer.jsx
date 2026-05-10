@@ -308,13 +308,15 @@ export default function DocumentRenderer({ doc }) {
 
   return (
     <div>
-      {renderTemplate() || <BlankRenderer content={doc.content} docId={docId} jumpToSource={jumpToSource} />}
       {doc.content && (
-        <div className="mt-6 pt-4 border-t border-gray-200">
-          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">归档追加内容</p>
+        <div className="mb-6 pb-4 border-b border-gray-200">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-[10px] text-purple-500 uppercase tracking-wider font-semibold">✨ AI 生成内容</span>
+          </div>
           <BlankRenderer content={doc.content} docId={docId} jumpToSource={jumpToSource} />
         </div>
       )}
+      {renderTemplate() || (doc.content ? null : <BlankRenderer content={doc.content} docId={docId} jumpToSource={jumpToSource} />)}
     </div>
   )
 }

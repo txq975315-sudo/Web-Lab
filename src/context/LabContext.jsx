@@ -223,8 +223,8 @@ const DEFAULT_PROJECT_TREE = [
 function labReducer(state, action) {
   switch (action.type) {
     case ActionTypes.CREATE_PROJECT: {
-      const { name, constitutionData } = action.payload
-      const projectId = generateId('proj')
+      const { name, constitutionData, projectId: presetProjectId } = action.payload
+      const projectId = presetProjectId || generateId('proj')
       
       const defaultConstitution = constitutionData || {
         corePositioning: '未设置核心定位',
@@ -492,7 +492,7 @@ function labReducer(state, action) {
 
 export function LabProvider({ children }) {
   // 使用 localStorage 持久化
-  const [activeLabTab, setActiveLabTab] = useLocalStorage('kairos-active-lab-tab', 'practice')
+  const [activeLabTab, setActiveLabTab] = useLocalStorage('kairos-active-lab-tab', 'live')
   const [storedActiveProjectId, setStoredActiveProjectId] = useLocalStorage('kairos-active-project', 'proj-1')
   const [storedProjectTree, setStoredProjectTree] = useLocalStorage(STORAGE_KEYS.PROJECT_TREE, DEFAULT_PROJECT_TREE)
   const [constitution, setConstitution] = useLocalStorage(STORAGE_KEYS.CONSTITUTION, '')
@@ -565,19 +565,31 @@ export function LabProvider({ children }) {
     setArchaeologySessions(sessions)
   }, [])
 
+  // 兼容旧版：labMode / activeLabTab 曾误写为 practice，与 LabPanel（live | archaeology）不一致
+  useEffect(() => {
+    if (labMode === 'practice') setLabMode('live')
+  }, [labMode, setLabMode])
+
+  useEffect(() => {
+    if (activeLabTab === 'practice') setActiveLabTab('live')
+  }, [activeLabTab, setActiveLabTab])
+
   // 辅助函数
   const activeProject = state.projectTree.find(p => p.id === state.activeProjectId) || state.projectTree[0]
   const allDocuments = activeProject ? collectDocuments([activeProject]) : []
 
   // 行动创建器
   const createProject = (name, constitutionData) => {
+    const projectId = generateId('proj')
     dispatch({
       type: ActionTypes.CREATE_PROJECT,
-      payload: { name, constitutionData }
+      payload: { name, constitutionData, projectId }
     })
+    return projectId
   }
 
-  const createDocument = (parentId, docData) => {
+  const createDocument = (parentId, docData, options = {}) => {
+    const { trustParentId = false } = options
     const docId = generateId('doc')
     const document = {
       id: docId,
@@ -592,20 +604,19 @@ export function LabProvider({ children }) {
       updatedAt: new Date().toISOString(),
       ...docData
     }
-    
+
     let validatedParentId = parentId
-    
-    // 在当前活跃项目中查找匹配的分类节点
-    const activeProject = state.projectTree.find(p => p.id === state.activeProjectId)
-    
-    if (activeProject && activeProject.children) {
-      // 使用 getForcedCategory 函数，传入项目的分类节点
-      const forcedCategory = getForcedCategory(document.docType, activeProject.children)
-      if (forcedCategory) {
-        validatedParentId = forcedCategory
-      } else {
-        // 如果找不到，回退到第一个分类节点
-        validatedParentId = activeProject.children[0]?.id
+
+    if (!trustParentId) {
+      const activeProject = state.projectTree.find(p => p.id === state.activeProjectId)
+
+      if (activeProject && activeProject.children) {
+        const forcedCategory = getForcedCategory(document.docType, activeProject.children)
+        if (forcedCategory) {
+          validatedParentId = forcedCategory
+        } else {
+          validatedParentId = activeProject.children[0]?.id
+        }
       }
     }
 

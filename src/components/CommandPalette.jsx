@@ -363,7 +363,7 @@ export default function CommandPalette() {
                   </div>
                   {recentDocs.map((doc, i) => (
                     <div
-                      key={doc.id}
+                      key={`recent-${doc.projectId || 'p'}-${doc.id || 'id'}-${i}`}
                       onClick={() => handleItemClick('recent', doc)}
                       className="flex items-center gap-3 px-4 py-2 cursor-pointer mx-1 rounded-lg"
                       style={{
@@ -416,7 +416,7 @@ export default function CommandPalette() {
                 const idx = (showRecent ? recentDocs.length : 0) + i
                 return (
                   <div
-                    key={doc.id}
+                    key={`search-${doc.projectId || 'p'}-${doc.id || 'id'}-${i}`}
                     onClick={() => handleItemClick('doc', doc)}
                     className="flex items-center gap-3 px-4 py-2 cursor-pointer mx-1 rounded-lg"
                     style={{

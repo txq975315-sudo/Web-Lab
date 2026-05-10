@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { downloadLabDataExport, importLabDataFromJson } from '../utils/labDataSync'
 
 const STORAGE_KEY = 'kairos-ai-config'
 
@@ -39,6 +40,7 @@ function saveConfig(config) {
 }
 
 export default function SettingsModal({ isOpen, onClose }) {
+  const importInputRef = useRef(null)
   const [provider, setProvider] = useState('openrouter')
   const [apiKey, setApiKey] = useState('')
   const [baseURL, setBaseURL] = useState('')
@@ -86,6 +88,30 @@ export default function SettingsModal({ isOpen, onClose }) {
     onClose()
   }
 
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = typeof reader.result === 'string' ? reader.result : ''
+      const result = importLabDataFromJson(text)
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+      if (
+        window.confirm(
+          '导入将用备份覆盖本浏览器内的工作台数据（项目树、对话历史、API 配置等）。确定后页面将刷新。'
+        )
+      ) {
+        window.location.reload()
+      }
+    }
+    reader.onerror = () => window.alert('读取文件失败')
+    reader.readAsText(file, 'utf-8')
+  }
+
   if (!isOpen) return null
 
   return (
@@ -124,6 +150,9 @@ export default function SettingsModal({ isOpen, onClose }) {
         </div>
 
         <div className="px-6 py-5 space-y-5">
+          <p className="text-xs text-white/55 leading-relaxed">
+            API Key 需自行向 OpenRouter、DeepSeek 等服务商申请并填入下方；仅保存在本机浏览器，不会上传到任何服务器。共用电脑时请注意退出或清除密钥。
+          </p>
           <div>
             <label className="block text-sm font-medium text-white/80 mb-2">
               API Provider
@@ -202,6 +231,47 @@ export default function SettingsModal({ isOpen, onClose }) {
                 backgroundColor: 'rgba(255, 255, 255, 0.08)',
                 border: '1px solid rgba(255, 255, 255, 0.15)'
               }}
+            />
+          </div>
+
+          <div
+            className="rounded-xl p-4 space-y-3"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}
+          >
+            <h3 className="text-sm font-medium text-white">数据与环境</h3>
+            <p className="text-xs text-white/55 leading-relaxed">
+              侧栏与文档列表保存在本机浏览器存储中。Chrome 与 Trae 内置预览、或{' '}
+              <code className="text-white/70">localhost</code> 与{' '}
+              <code className="text-white/70">127.0.0.1</code> 之间数据隔离，界面可能不一致；这不代表代码版本不同。当前源：
+              <span className="text-white/80"> {typeof window !== 'undefined' ? window.location.origin : ''}</span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => downloadLabDataExport()}
+                className="px-3 py-2 text-xs font-medium rounded-lg text-white transition-colors"
+                style={{ backgroundColor: 'rgba(139, 92, 246, 0.5)', border: '1px solid rgba(139, 92, 246, 0.6)' }}
+              >
+                导出工作台备份
+              </button>
+              <button
+                type="button"
+                onClick={() => importInputRef.current?.click()}
+                className="px-3 py-2 text-xs font-medium rounded-lg text-white/90 transition-colors hover:bg-white/10"
+                style={{ border: '1px solid rgba(255, 255, 255, 0.2)' }}
+              >
+                导入备份…
+              </button>
+            </div>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={handleImportFile}
             />
           </div>
         </div>
