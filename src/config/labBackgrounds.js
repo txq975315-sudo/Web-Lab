@@ -3,6 +3,7 @@
  * 将新图片放入 public/backgrounds/ 后，把路径追加到本数组即可参与轮换。
  */
 export const LAB_BACKGROUND_IMAGES = [
+  '/backgrounds/bg-figma-sky.jpg',
   '/backgrounds/bg-1.jpg',
   '/backgrounds/bg-2.jpg',
   '/backgrounds/bg-3.jpg',
