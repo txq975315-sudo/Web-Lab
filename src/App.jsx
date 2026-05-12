@@ -28,10 +28,12 @@ function AppContent() {
 
   const [showSettings, setShowSettings] = useState(false)
   const [railTool, setRailTool] = useState(null)
+  /** 压力练工作台：与左侧「智能推荐」联动，收起/展开右侧 Insight 栏 */
+  const [rightInsightDeckOpen, setRightInsightDeckOpen] = useState(true)
 
   const closeRail = useCallback(() => setRailTool(null), [])
 
-  const liveWorkbenchSurface = labMode === 'live' && !activeDocId
+  const liveWorkbenchSurface = labMode === 'live'
 
   const activeProject = projects?.find((p) => p.id === activeProjectId)
   const activeArchSession = archaeologySessions?.find((s) => s.id === activeArchaeologyId)
@@ -58,7 +60,7 @@ function AppContent() {
   }
 
   const renderMain = () => {
-    if (activeDocId) {
+    if (activeDocId && labMode !== 'live') {
       return (
         <div className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent">
           <div className="wb-substrip flex flex-shrink-0 flex-wrap items-center gap-2 px-6 py-2.5 md:px-8 lg:px-10 xl:px-12">
@@ -129,6 +131,7 @@ function AppContent() {
             hideChatHistorySidebar
             workbenchRailTool={railTool}
             onWorkbenchRailToolClose={closeRail}
+            onPressureTestStart={() => setRightInsightDeckOpen(true)}
           />
         </div>
       )
@@ -137,9 +140,8 @@ function AppContent() {
     return <DashboardHome />
   }
 
-  /** 文档阅读时也保留工作台左右栏（图标栏 + 右侧信息栏），与练·学·看一致 */
-  const showWorkbenchChrome = true
-  const showRightDeck = true
+  /** 非压力练全屏工作台或右栏展开时显示右侧 Insight；压力练下可由「智能推荐」收起 */
+  const showRightInsightDeck = !liveWorkbenchSurface || rightInsightDeckOpen
 
   return (
     <div className="wb-shell flex h-screen flex-col overflow-hidden font-sans">
@@ -219,6 +221,10 @@ function AppContent() {
           onToolChange={setRailTool}
           onSettingsClick={() => setShowSettings(true)}
           highlightProjectsWhenIdle={liveWorkbenchSurface}
+          insightDeckOpen={liveWorkbenchSurface ? rightInsightDeckOpen : null}
+          onRecommendInsightToggle={
+            liveWorkbenchSurface ? () => setRightInsightDeckOpen((v) => !v) : undefined
+          }
         />
         {railTool && !liveWorkbenchSurface && (
           <>
@@ -247,7 +253,7 @@ function AppContent() {
             {renderMain()}
           </main>
 
-          <RightInsightDeck className="hidden shrink-0 xl:flex" />
+          {showRightInsightDeck && <RightInsightDeck className="hidden shrink-0 xl:flex" />}
         </div>
         </div>
       </div>

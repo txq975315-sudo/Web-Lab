@@ -35,7 +35,7 @@ export default function AIFeedbackPanel({ feedback, onGoLive, loading }) {
       >
         <div className="text-xs text-lab-muted">总体评分</div>
         <div className="mt-1 flex items-end gap-2">
-          <span className="text-3xl font-semibold font-display" style={{ color: 'var(--color-accent-orange)' }}>
+          <span className="text-3xl font-semibold font-display" style={{ color: 'var(--color-brand-blue)' }}>
             {overall}
           </span>
           <span className="text-sm text-lab-muted">/ 5</span>
@@ -68,7 +68,7 @@ export default function AIFeedbackPanel({ feedback, onGoLive, loading }) {
                         className="h-2 w-2 rounded-full"
                         style={{
                           backgroundColor:
-                            n <= s ? 'var(--color-accent-orange)' : 'var(--color-border-default)',
+                            n <= s ? 'var(--color-brand-blue)' : 'var(--color-border-default)',
                         }}
                       />
                     ))}

@@ -327,7 +327,7 @@ export default function SelectionMenu({ text, position, onClose }) {
               type="checkbox"
               checked={usePolish}
               onChange={(e) => setUsePolish(e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-lab-border text-lab-accent accent-[var(--color-accent-orange)] focus-visible:ring-2 focus-visible:ring-lab-accent"
+              className="w-3.5 h-3.5 rounded border-lab-border text-lab-accent accent-[var(--color-brand-blue)] focus-visible:ring-2 focus-visible:ring-lab-accent"
             />
             <span className="flex items-center gap-1">
               <Sparkles className="text-lab-warning" />
@@ -392,7 +392,7 @@ export default function SelectionMenu({ text, position, onClose }) {
             disabled={!selectedDoc}
             className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
-              backgroundColor: selectedDoc ? 'var(--color-accent-orange)' : 'var(--color-border-default)',
+              backgroundColor: selectedDoc ? 'var(--color-brand-blue)' : 'var(--color-border-default)',
               color: selectedDoc ? 'var(--color-text-inverted)' : 'var(--color-text-muted)',
             }}
           >

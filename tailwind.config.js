@@ -36,6 +36,7 @@ export default {
       },
       borderRadius: {
         lab: 'var(--radius-lg)',
+        card: 'var(--radius-card)',
       },
       boxShadow: {
         card: 'var(--shadow-card)',

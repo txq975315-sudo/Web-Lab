@@ -118,7 +118,15 @@ function RailIconSettings() {
   )
 }
 
-export default function WorkbenchIconRail({ activeTool, onToolChange, onSettingsClick, highlightProjectsWhenIdle = false }) {
+/** 压力练场景下：智能推荐与右侧 Insight 栏联动；`insightDeckOpen` 为 null 时不改推荐高亮逻辑 */
+export default function WorkbenchIconRail({
+  activeTool,
+  onToolChange,
+  onSettingsClick,
+  highlightProjectsWhenIdle = false,
+  insightDeckOpen = null,
+  onRecommendInsightToggle,
+}) {
   const { switchLabMode } = useLab()
 
   return (
@@ -149,9 +157,12 @@ export default function WorkbenchIconRail({ activeTool, onToolChange, onSettings
       {/* 工具列上沿与 logo 底沿对齐，无额外垂直居中留白 */}
       <div className="flex shrink-0 flex-col items-center gap-1 pt-0">
         {TOOLS.map((t) => {
-          const active =
-            activeTool === t.id || (highlightProjectsWhenIdle && t.id === 'projects' && activeTool == null)
+          const recommendLinked = t.id === 'recommend' && insightDeckOpen != null && onRecommendInsightToggle
+          const active = recommendLinked
+            ? insightDeckOpen
+            : activeTool === t.id || (highlightProjectsWhenIdle && t.id === 'projects' && activeTool == null)
           const Icon = t.Icon
+          const railBtnW = 'calc(2rem * 4 / 3)'
           return (
             <button
               key={t.id}
@@ -159,9 +170,16 @@ export default function WorkbenchIconRail({ activeTool, onToolChange, onSettings
               title={t.label}
               aria-label={t.label}
               aria-pressed={active}
-              onClick={() => onToolChange(active ? null : t.id)}
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-colors duration-200 hover:bg-[var(--wb-primary-muted)]"
+              onClick={() => {
+                if (recommendLinked) {
+                  onRecommendInsightToggle()
+                  return
+                }
+                onToolChange(active ? null : t.id)
+              }}
+              className="flex h-8 min-w-[calc(2rem*4/3)] cursor-pointer items-center justify-center rounded-lg transition-colors duration-200 hover:bg-[var(--wb-primary-muted)]"
               style={{
+                width: railBtnW,
                 color: active ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                 background: active ? 'rgba(255, 253, 248, 0.72)' : 'transparent',
               }}

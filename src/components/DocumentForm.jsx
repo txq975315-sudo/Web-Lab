@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { getTemplateFields, getTemplateLabel, getTemplateIcon, createDefaultFields } from '../config/templates'
 import { generateDocumentConfig } from '../config/documentGenerators'
 
-const FOCUS_BORDER = 'var(--color-accent-orange)'
+const FOCUS_BORDER = 'var(--color-brand-blue)'
 const BLUR_BORDER = 'var(--color-border-default)'
 
 function FieldInput({ field, value, onChange }) {

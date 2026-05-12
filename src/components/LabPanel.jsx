@@ -1,6 +1,8 @@
 import { useLab } from '../context/LabContext'
 import { STORAGE_KEYS } from '../config/storageKeys.js'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkBreaks from 'remark-breaks'
 import SelectionMenu from './SelectionMenu'
 import ChatHistorySidebar from './ChatHistorySidebar'
 import { streamChat, chatComplete } from '../utils/aiApi'
@@ -10,6 +12,7 @@ import { LAB_BACKGROUND_IMAGES, getLabBackgroundIndex } from '../config/labBackg
 import PressureTestWorkbench from './workbench/PressureTestWorkbench'
 import WorkbenchMiddleToolColumn from './workbench/WorkbenchMiddleToolColumn'
 import ModuleSegmentedControl from './workbench/ModuleSegmentedControl'
+import ArchivePanel from './ArchivePanel'
 
 function DragToolbar({ selectedText, position, onClose, messageId }) {
   const handleDragStart = (e) => {
@@ -80,6 +83,8 @@ function DragToolbar({ selectedText, position, onClose, messageId }) {
   )
 }
 
+const LIVE_LAB_MD_PLUGINS = [remarkBreaks]
+
 function LiveLab({
   messages,
   setMessages,
@@ -98,8 +103,34 @@ function LiveLab({
 }) {
   const { projectTree, expertMode } = useLab()
   const messagesRef = useRef(null)
+  const composerTextareaRef = useRef(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const activeProject = projectTree.find(p => p.id === activeProjectId)
+
+  const adjustComposerHeight = useCallback(() => {
+    const el = composerTextareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    const style = window.getComputedStyle(el)
+    const lineHeight = parseFloat(style.lineHeight) || 20
+    const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
+    const maxH = lineHeight * 5 + padY
+    const next = Math.min(el.scrollHeight, maxH)
+    el.style.height = `${Math.max(lineHeight + padY, next)}px`
+    el.style.overflowY = el.scrollHeight > maxH ? 'auto' : 'hidden'
+  }, [])
+
+  useEffect(() => {
+    adjustComposerHeight()
+  }, [inputValue, workbenchUi, adjustComposerHeight])
+
+  const handleComposerKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (isStreaming || !inputValue.trim()) return
+      e.currentTarget.form?.requestSubmit()
+    }
+  }
 
   const handleSend = async (e) => {
     e.preventDefault()
@@ -233,29 +264,35 @@ function LiveLab({
 
   const liveLabBody = (
     <>
-      {activeProject && (
-        <div
-          className={`relative z-10 flex items-center justify-between pt-2 ${workbenchUi ? 'px-0' : 'px-6'}`}
-          style={workbenchUi ? { color: 'var(--wb-muted)' } : undefined}
+      <div
+        className={`relative z-10 flex flex-wrap items-center justify-between gap-2 pt-2 ${workbenchUi ? 'px-0' : 'px-6'}`}
+        style={workbenchUi ? { color: 'var(--wb-muted)' } : undefined}
+      >
+        <span
+          className={`max-w-[min(100%,42rem)] text-[10px] leading-snug ${workbenchUi ? 'text-[var(--wb-muted)]' : 'text-lab-muted'}`}
         >
-          <span className={`text-[10px] ${workbenchUi ? 'text-[var(--wb-muted)]' : 'text-lab-muted'}`}>
-            正在项目：{activeProject.name}
-          </span>
-          {viewingHistorySessionId && (
-            <button
-              type="button"
-              onClick={handleBackToLive}
-              className="text-[10px] text-lab-accent hover:text-lab-accent-warm transition-colors"
-            >
-              ← 返回实时对话
-            </button>
+          {activeProject ? (
+            <>正在项目：{activeProject.name}</>
+          ) : (
+            <>
+              尚未绑定项目。请在左侧项目树中选择项目，或新建项目后再开始对话（绑定后消息将归档到该项目）。
+            </>
           )}
-        </div>
-      )}
+        </span>
+        {viewingHistorySessionId && (
+          <button
+            type="button"
+            onClick={handleBackToLive}
+            className="text-[10px] text-lab-accent hover:text-lab-accent-warm transition-colors"
+          >
+            ← 返回实时对话
+          </button>
+        )}
+      </div>
 
       <div
         ref={messagesRef}
-        className={`relative flex-1 overflow-auto pb-4 space-y-4 z-10 ${workbenchUi ? 'px-0' : 'px-6'}`}
+        className={`relative flex-1 overflow-auto pb-4 space-y-6 z-10 ${workbenchUi ? 'px-0' : 'px-6'}`}
         onMouseUp={handleTextSelect}
       >
         {displayMessages.length === 0 ? (
@@ -263,87 +300,123 @@ function LiveLab({
             {viewingHistorySessionId ? '该会话暂无消息' : '暂无对话记录'}
           </div>
         ) : (
-          displayMessages.map((message, msgIndex) => (
-            <div
-              key={message.id != null && String(message.id) !== '' ? String(message.id) : `msg-fallback-${msgIndex}`}
-              data-message-id={message.id}
-              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} ${message.type === 'system' ? 'justify-center' : ''}`}
-            >
-              <div
-                className={`max-w-[75%] p-4 rounded-2xl font-body ${
-                  message.type === 'user'
-                    ? 'text-[var(--color-text-inverted)] rounded-br-md'
-                    : message.type === 'system'
-                    ? 'text-xs rounded-lg'
-                    : 'rounded-bl-md'
-                }`}
-                style={{
-                  backgroundColor:
-                    message.type === 'user'
-                      ? workbenchUi
-                        ? 'var(--wb-primary)'
-                        : 'var(--color-brand-blue)'
-                      : message.type === 'system'
-                      ? 'var(--color-bg-inverted)'
-                      : 'var(--color-bg-overlay)',
-                  backdropFilter: message.type === 'user' ? 'none' : 'blur(8px)',
-                  border:
-                    message.type === 'assistant'
-                      ? '1px solid var(--color-border-subtle)'
-                      : workbenchUi && message.type === 'user'
-                        ? '1px solid color-mix(in srgb, var(--wb-steel) 35%, transparent)'
-                        : 'none',
-                  color:
-                    message.type === 'system'
-                      ? 'var(--color-text-inverted)'
-                      : message.type === 'user'
-                      ? '#ffffff'
-                      : 'var(--color-text-primary)',
-                }}
-              >
-                <p className={`text-sm ${message.type === 'system' ? 'text-xs' : ''}`}>
-                  {message.content}
-                </p>
-                {message.formatWarnings && message.formatWarnings.length > 0 && (
+          displayMessages.map((message, msgIndex) => {
+            const key =
+              message.id != null && String(message.id) !== ''
+                ? String(message.id)
+                : `msg-fallback-${msgIndex}`
+
+            if (message.type === 'system') {
+              return (
+                <div
+                  key={key}
+                  data-message-id={message.id}
+                  className="flex flex-col items-center justify-center gap-1"
+                >
                   <div
-                    className="mt-2 p-2 rounded-lg text-xs"
+                    className="max-w-[90%] rounded-lg px-4 py-2 font-body shadow-sm"
                     style={{
-                      backgroundColor: 'var(--color-warning-dim)',
-                      border: '1px solid color-mix(in srgb, var(--color-warning) 35%, transparent)',
-                      color: 'var(--color-warning)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.96)',
+                      color: 'var(--color-text-primary)',
+                      border: '1px solid var(--color-border-subtle)',
+                      boxShadow: '0 1px 10px rgba(20, 20, 19, 0.05)',
                     }}
                   >
-                    <div className="mb-1 flex items-center gap-1.5 font-medium">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
-                        <path d="M12 9v4M12 17h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                        <path
-                          d="M10.3 3.2L2.7 18c-.8 1.5.2 3.3 2 3.3h14.6c1.8 0 2.8-1.8 2-3.3L13.7 3.2c-.9-1.6-3.5-1.6-4.4 0z"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                      格式警告：
-                    </div>
-                    {message.formatWarnings.map((warning, i) => (
-                      <div key={i} className="ml-2">• {warning}</div>
-                    ))}
+                    <p className="whitespace-pre-wrap text-xs">{message.content}</p>
                   </div>
-                )}
-                <span
-                  className="text-xs mt-1 block text-right"
-                  style={{
-                    color:
-                      message.type === 'user'
-                        ? 'rgba(250,249,245,0.75)'
-                        : 'var(--color-text-muted)',
-                  }}
+                  <time className="text-[10px] opacity-70" style={{ color: 'var(--color-text-muted)' }}>
+                    {message.time}
+                  </time>
+                </div>
+              )
+            }
+
+            if (message.type === 'user') {
+              const userBubbleSurface = {
+                background: 'rgba(15, 23, 42, 0.05)',
+                border: '1px solid rgba(15, 23, 42, 0.08)',
+                color: 'var(--wb-primary-hex, #3a4a40)',
+              }
+              return (
+                <div
+                  key={key}
+                  data-message-id={message.id}
+                  className="flex justify-end"
                 >
-                  {message.time}
-                </span>
+                  <div className="flex max-w-[min(100%,42rem)] flex-col items-end gap-1">
+                    <div
+                      className="rounded-2xl rounded-br-md px-4 py-3 font-body transition-colors duration-200 hover:bg-[rgba(15,23,42,0.06)]"
+                      style={
+                        workbenchUi
+                          ? userBubbleSurface
+                          : {
+                              background: 'rgba(15, 23, 42, 0.05)',
+                              border: '1px solid rgba(15, 23, 42, 0.08)',
+                              color: 'var(--color-text-primary)',
+                            }
+                      }
+                    >
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+                    </div>
+                    <time
+                      className="px-0.5 text-[10px] tabular-nums"
+                      style={{ color: workbenchUi ? 'var(--wb-muted)' : 'var(--color-text-muted)' }}
+                    >
+                      {message.time}
+                    </time>
+                  </div>
+                </div>
+              )
+            }
+
+            return (
+              <div
+                key={key}
+                data-message-id={message.id}
+                className="flex w-full min-w-0 justify-start"
+              >
+                <div className="w-full min-w-0 max-w-full pr-2">
+                  <div className="live-lab-assistant-md">
+                    <ReactMarkdown remarkPlugins={LIVE_LAB_MD_PLUGINS}>{message.content}</ReactMarkdown>
+                  </div>
+                  {message.formatWarnings && message.formatWarnings.length > 0 && (
+                    <div
+                      className="mt-3 rounded-lg p-2 text-xs"
+                      style={{
+                        backgroundColor: 'var(--color-warning-dim)',
+                        border: '1px solid color-mix(in srgb, var(--color-warning) 35%, transparent)',
+                        color: 'var(--color-warning)',
+                      }}
+                    >
+                      <div className="mb-1 flex items-center gap-1.5 font-medium">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
+                          <path d="M12 9v4M12 17h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                          <path
+                            d="M10.3 3.2L2.7 18c-.8 1.5.2 3.3 2 3.3h14.6c1.8 0 2.8-1.8 2-3.3L13.7 3.2c-.9-1.6-3.5-1.6-4.4 0z"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        格式警告：
+                      </div>
+                      {message.formatWarnings.map((warning, i) => (
+                        <div key={i} className="ml-2">
+                          • {warning}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <time
+                    className="mt-2 block text-[10px] tabular-nums"
+                    style={{ color: workbenchUi ? 'var(--wb-muted)' : 'var(--color-text-muted)' }}
+                  >
+                    {message.time}
+                  </time>
+                </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
 
@@ -355,87 +428,96 @@ function LiveLab({
           className={`relative z-10 ${workbenchUi ? 'px-0 pb-5' : 'px-6 pb-6'}`}
         >
           {workbenchUi ? (
-            <div className="wb-composer-bar flex items-center gap-1 px-2 py-2 md:gap-2 md:px-3">
-              <button
-                type="button"
-                className="cursor-pointer rounded-lg p-2 text-[var(--wb-muted)] transition-colors hover:bg-[var(--wb-sky-muted)] hover:text-[var(--wb-steel)]"
-                aria-label="附件"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path
-                    d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className="cursor-pointer rounded-lg p-2 text-[var(--wb-muted)] transition-colors hover:bg-[var(--wb-sky-muted)] hover:text-[var(--wb-steel)]"
-                aria-label="模板"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
-                  <path d="M9 9h6M9 13h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className="cursor-pointer rounded-lg p-2 text-[var(--wb-muted)] transition-colors hover:bg-[var(--wb-sky-muted)] hover:text-[var(--wb-steel)]"
-                aria-label="语音输入"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path
-                    d="M12 14a3 3 0 003-3V5a3 3 0 10-6 0v6a3 3 0 003 3zM19 10v1a7 7 0 01-14 0v-1M12 18v4"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-              <input
-                type="text"
+            <div className="wb-composer-bar flex flex-col gap-2 px-2 py-2 md:px-3">
+              <textarea
+                ref={composerTextareaRef}
+                rows={1}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleComposerKeyDown}
                 placeholder="补充追问或继续对话…"
                 data-send-input
-                className="min-w-0 flex-1 border-0 bg-transparent py-2 text-sm text-[var(--wb-text)] outline-none placeholder:text-[var(--wb-muted)]"
+                className="min-h-[44px] min-w-0 w-full resize-none border-0 bg-transparent px-0.5 py-1 text-sm leading-5 text-[var(--wb-text)] outline-none placeholder:text-[var(--wb-muted)]"
               />
-              <button
-                type="submit"
-                data-send-button
-                disabled={isStreaming}
-                title={isStreaming ? '发送中…' : '发送'}
-                aria-label={isStreaming ? '发送中' : '发送'}
-                className="wb-btn-primary flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center p-0 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ borderRadius: 'var(--wb-radius-btn, 20px)' }}
-              >
-                {isStreaming ? (
-                  <span className="text-xs">…</span>
-                ) : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path
-                      d="M5 12h14M13 6l6 6-6 6"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
-              </button>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    className="cursor-pointer rounded-lg p-2 text-[var(--wb-muted)] transition-colors hover:bg-[var(--wb-sky-muted)] hover:text-[var(--wb-steel)]"
+                    aria-label="附件"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className="cursor-pointer rounded-lg p-2 text-[var(--wb-muted)] transition-colors hover:bg-[var(--wb-sky-muted)] hover:text-[var(--wb-steel)]"
+                    aria-label="模板"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
+                      <path d="M9 9h6M9 13h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className="cursor-pointer rounded-lg p-2 text-[var(--wb-muted)] transition-colors hover:bg-[var(--wb-sky-muted)] hover:text-[var(--wb-steel)]"
+                    aria-label="语音输入"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M12 14a3 3 0 003-3V5a3 3 0 10-6 0v6a3 3 0 003 3zM19 10v1a7 7 0 01-14 0v-1M12 18v4"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <button
+                  type="submit"
+                  data-send-button
+                  disabled={isStreaming}
+                  title={isStreaming ? '发送中…' : '发送'}
+                  aria-label={isStreaming ? '发送中' : '发送'}
+                  className="wb-btn-primary flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center p-0 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ borderRadius: 'var(--wb-radius-btn, 20px)' }}
+                >
+                  {isStreaming ? (
+                    <span className="text-xs">…</span>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M5 12h14M13 6l6 6-6 6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <input
-                type="text"
+            <div className="flex items-end gap-3">
+              <textarea
+                ref={composerTextareaRef}
+                rows={1}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleComposerKeyDown}
                 placeholder="输入你的想法..."
-                className="flex-1 px-4 py-3 rounded-xl text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-lab-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lab-base transition-all text-lab-ink placeholder:text-lab-faint font-body"
+                data-send-input
+                className="min-h-[48px] flex-1 resize-none rounded-xl px-4 py-3 text-sm leading-5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-lab-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lab-base font-body text-lab-ink placeholder:text-lab-faint"
                 style={{
                   backgroundColor: 'var(--color-bg-overlay)',
                   backdropFilter: 'blur(8px)',
@@ -719,8 +801,9 @@ export default function LabPanel({
   workbenchLayout = false,
   workbenchRailTool = null,
   onWorkbenchRailToolClose,
+  onPressureTestStart,
 }) {
-  const { labMode, switchLabMode, projectTree, activeProjectId, allHistoryMessages, viewingHistorySessionId, setViewingHistorySessionId, saveMessageToHistory, startNewSession, labMessageToSend, autoSendLabMessage, getMemorySummary, currentSessionId, setCurrentSessionId } = useLab()
+  const { labMode, switchLabMode, projectTree, activeProjectId, activeDocId, allHistoryMessages, viewingHistorySessionId, setViewingHistorySessionId, saveMessageToHistory, startNewSession, labMessageToSend, autoSendLabMessage, getMemorySummary, currentSessionId, setCurrentSessionId } = useLab()
   const [inputValue, setInputValue] = useState('')
   const [stressDraft, setStressDraft] = useState('')
   const [messages, setMessages] = useState([
@@ -737,6 +820,52 @@ export default function LabPanel({
       return true
     }
   })
+
+  const WB_INLINE_DOC_W_KEY = 'thinking-lab-wb-inline-doc-width-v1'
+  const [wbInlineDocWidth, setWbInlineDocWidth] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem(WB_INLINE_DOC_W_KEY)
+      const n = raw != null ? Number(raw) : NaN
+      return Number.isFinite(n) ? Math.min(560, Math.max(220, n)) : 300
+    } catch {
+      return 300
+    }
+  })
+  const wbDocDragRef = useRef({ active: false, startX: 0, startW: 0, lastW: 300 })
+
+  const onWbDocResizePointerDown = useCallback(
+    (e) => {
+      if (e.button !== 0) return
+      e.preventDefault()
+      wbDocDragRef.current = {
+        active: true,
+        startX: e.clientX,
+        startW: wbInlineDocWidth,
+        lastW: wbInlineDocWidth,
+      }
+      const onMove = (ev) => {
+        const d = wbDocDragRef.current
+        if (!d.active) return
+        const dx = ev.clientX - d.startX
+        const next = Math.min(560, Math.max(220, d.startW + dx))
+        d.lastW = next
+        setWbInlineDocWidth(next)
+      }
+      const onUp = () => {
+        wbDocDragRef.current.active = false
+        document.removeEventListener('mousemove', onMove)
+        document.removeEventListener('mouseup', onUp)
+        try {
+          sessionStorage.setItem(WB_INLINE_DOC_W_KEY, String(wbDocDragRef.current.lastW))
+        } catch {
+          /* ignore */
+        }
+      }
+      document.addEventListener('mousemove', onMove)
+      document.addEventListener('mouseup', onUp)
+    },
+    [wbInlineDocWidth]
+  )
 
   const historyMessages = viewingHistorySessionId 
     ? allHistoryMessages[activeProjectId]?.[viewingHistorySessionId] || []
@@ -902,6 +1031,32 @@ export default function LabPanel({
           <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
             <WorkbenchMiddleToolColumn tool={workbenchRailTool} onClose={onWorkbenchRailToolClose || (() => {})} />
 
+            {activeDocId && (
+              <>
+                <div
+                  className="flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden rounded-lg bg-transparent"
+                  style={{
+                    width: wbInlineDocWidth,
+                    border: '1px solid rgba(15, 23, 42, 0.09)',
+                  }}
+                >
+                  <ArchivePanel variant="inline" />
+                </div>
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="拖动调整文档区宽度"
+                  onMouseDown={onWbDocResizePointerDown}
+                  className="group relative w-2 shrink-0 cursor-col-resize select-none touch-none"
+                >
+                  <div
+                    className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-[rgba(15,23,42,0.12)] transition-colors group-hover:bg-[var(--color-accent-orange)]"
+                    aria-hidden
+                  />
+                </div>
+              </>
+            )}
+
             <div className="flex min-h-0 min-w-0 flex-1 flex-col pb-3 pl-1 pr-3 pt-0 md:pb-4 md:pl-2 md:pr-5" style={{ flex: '1 1 65%' }}>
               <div className="wb-pressure-dialog min-h-0 flex-1">
                 <div className="wb-pressure-dialog-segment">
@@ -909,14 +1064,15 @@ export default function LabPanel({
                 </div>
                 {pressureGuideOpen ? (
                   <>
-                    <div className="min-h-0 flex-1 overflow-y-auto scroll-smooth">
-                      <div className="wb-thread w-full px-4 py-4 md:px-6">
+                    <div className="wb-pressure-dialog-guide-scroll min-h-0 flex-1 overflow-y-auto scroll-smooth">
+                      <div className="wb-pressure-dialog-guide-inner wb-thread w-full px-4 py-4 md:px-6">
                         <PressureTestWorkbench
                           draftValue={stressDraft}
                           setDraftValue={setStressDraft}
                           disabled={false}
                           onSubmit={() => {
                             if (!stressDraft.trim()) return
+                            onPressureTestStart?.()
                             const draft = stressDraft.trim()
                             dismissPressureGuide()
                             setInputValue(draft)

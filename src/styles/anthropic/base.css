@@ -1,71 +1,66 @@
 /*
- * Anthropic Style — Base CSS
- * 将此文件作为所有 Anthropic 风格项目的基础层
- * 包含：CSS 变量、Reset、基础排版
- *
- * ⚠️  使用前请在 HTML <head> 中先引入本地字体：
- *     <link rel="stylesheet" href="assets/fonts/fonts.css">
- *     然后再引入本文件：
- *     <link rel="stylesheet" href="references/base.css">
- *
- *     字体文件位于 assets/fonts/ 目录，无需联网即可加载。
+ * Thinking Lab — Base CSS（蓝色系 Token）
+ * 基于Figma原型对齐的蓝色系设计系统
+ * 保留Anthropic间距/动效框架，替换色彩/字体/圆角
  */
 
 /* ═══════════════════════════════════════
    1. 设计 Token
 ═══════════════════════════════════════ */
 :root {
-  /* 颜色 */
-  --color-bg-base:        #ECE9E0;
-  --color-bg-raised:      #F5F3EC;
-  --color-bg-overlay:     #FDFCF8;
-  --color-bg-inverted:    #141413;
-  --color-text-primary:   #141413;
-  --color-text-secondary: #6B6860;
-  --color-text-muted:     #B0AEA5;
-  --color-text-inverted:  #FAF9F5;
-  --color-text-link:      #C96442;
-  --color-border-default: #D8D5CC;
-  --color-border-subtle:  #E8E6DC;
-  --color-border-strong:  #9B9890;
-  --color-accent-orange:  #D97757;
-  --color-accent-warm:    #C96442;
-  --color-accent-blue:    #6A9BCC;
-  --color-accent-green:   #788C5D;
-  --color-accent-sand:    #C4B99A;
-  --color-success:        #6B8F47;
-  --color-warning:        #C9943A;
-  --color-error:          #C0453A;
-  --color-info:           #5A89B8;
+  /* ═══ 品牌色（蓝色系 — 对齐Figma原型） ═══ */
+  --color-brand-blue:     #00AAFF;
+  --color-secondary-blue: #6F9FB7;
+  --color-dark-cyan-blue: #467790;
 
-  /* 字体（Latin）
-   * 官方品牌字体（来自 brand-guidelines）：Poppins（heading）+ Lora（body）
-   * 备选字体（风格相近，可替代）：DM Sans（heading）+ DM Serif（body）
-   * 所有字体均已内置在 assets/fonts/ 中
-   */
-  --font-display:  'Lora', 'DM Serif Display', 'Georgia', serif;
-  --font-heading:  'Poppins', 'DM Sans', 'Arial', sans-serif;
-  --font-body:     'Lora', 'DM Serif Text', 'Georgia', serif;
-  --font-mono:     'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  /* ═══ 背景色 ═══ */
+  --color-bg-base:        #F5F5F5;
+  --color-bg-raised:      #FFFFFF;
+  --color-bg-overlay:     #FFFFFF;
+  --color-bg-inverted:    #1E1E1E;
 
-  /* 字重参考（Poppins 可用 300/400/500/600/700）*/
+  /* ═══ 文字色 ═══ */
+  --color-text-primary:   #1E1E1E;
+  --color-text-secondary: #848484;
+  --color-text-muted:     #B3B3B3;
+  --color-text-inverted:  #FFFFFF;
+  --color-text-link:      #00AAFF;
+
+  /* ═══ 边框色 ═══ */
+  --color-border-default: #D9D9D9;
+  --color-border-subtle:  #EEEEED;
+  --color-border-strong:  #B3B3B3;
+
+  /* ═══ 强调色（变量名保留以兼容 lab-* Tailwind类，值已迁移至蓝色） ═══ */
+  --color-accent-orange:  #00AAFF;   /* 原 #D97757 → 品牌蓝 */
+  --color-accent-warm:    #00AAFF;   /* 原 #C96442 → 品牌蓝 */
+  --color-accent-blue:    #6F9FB7;   /* 原 #6A9BCC → 辅助蓝 */
+  --color-accent-green:   #52C41A;   /* 原 #788C5D → 成功绿 */
+  --color-accent-sand:    #6F9FB7;   /* 原 #C4B99A → 辅助蓝 */
+
+  /* ═══ 功能色 ═══ */
+  --color-success:        #52C41A;
+  --color-warning:        #FAAD14;
+  --color-error:          #FF4D4F;
+  --color-info:           #00AAFF;
+
+  /* ═══ 字体（蓝色系规范：微软雅黑 + Arial） ═══ */
+  --font-display:  'Microsoft YaHei', 'PingFang SC', 'Arial', sans-serif;
+  --font-heading:  'Microsoft YaHei', 'PingFang SC', 'Arial', sans-serif;
+  --font-body:     'Microsoft YaHei', 'PingFang SC', 'Arial', sans-serif;
+  --font-mono:     'Consolas', 'Monaco', 'Courier New', monospace;
+
+  /* 字重参考 */
   --weight-light:     300;
   --weight-regular:   400;
   --weight-medium:    500;
-  --weight-semibold:  600;  /* 新增：Poppins 有 600，DM Sans 无 */
+  --weight-semibold:  600;
   --weight-bold:      700;
 
-  /* 字体（简体中文混排）
-   * 英文字体在前（已声明 unicode-range，自动跳过 CJK 字符）
-   * 中文字体在后，作为 CJK 字符的渲染字体
-   */
-  --font-display-cn:  'Lora', 'DM Serif Display',
-                      'LXGW WenKai', 'Songti SC', 'STSong', 'SimSun', serif;
-  --font-body-cn:     'Lora', 'DM Serif Text',
-                      'LXGW WenKai', 'Songti SC', 'STSong', 'SimSun', serif;
-  --font-heading-cn:  'Poppins', 'DM Sans', 'Noto Sans SC', 'Source Han Sans SC',
-                      'PingFang SC', 'Microsoft YaHei UI',
-                      'Microsoft YaHei', sans-serif;
+  /* 字体（简体中文混排） */
+  --font-display-cn:  'Microsoft YaHei', 'PingFang SC', sans-serif;
+  --font-body-cn:     'Microsoft YaHei', 'PingFang SC', sans-serif;
+  --font-heading-cn:  'Microsoft YaHei', 'PingFang SC', sans-serif;
 
   /* 字号 */
   --text-xs:    0.75rem;
@@ -124,11 +119,12 @@
   --max-width-layout: 1200px;
   --max-width-full:   1440px;
 
-  /* 圆角 */
-  --radius-sm:   4px;
-  --radius-md:   8px;
-  --radius-lg:   16px;
+  /* 圆角（蓝色系规范 — 对齐Figma） */
+  --radius-sm:   8px;
+  --radius-md:   13px;
+  --radius-lg:   17px;
   --radius-xl:   24px;
+  --radius-card: 36px;     /* 主卡片大圆角 */
   --radius-full: 9999px;
 
   /* 动效 */
@@ -140,19 +136,19 @@
   --duration-slow:   400ms;
 }
 
-/* 深色模式 */
+/* 深色模式（蓝色系调性） */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg-base:        #1A1916;
-    --color-bg-raised:      #222119;
-    --color-bg-overlay:     #2C2B26;
-    --color-bg-inverted:    #F5F3EC;
-    --color-text-primary:   #EAE7DC;
-    --color-text-secondary: #9D9A91;
-    --color-text-muted:     #5C5A54;
-    --color-text-inverted:  #141413;
-    --color-border-default: #3A3830;
-    --color-border-subtle:  #2E2D27;
+    --color-bg-base:        #1A1D23;
+    --color-bg-raised:      #22262E;
+    --color-bg-overlay:     #2A2E36;
+    --color-bg-inverted:    #F5F5F5;
+    --color-text-primary:   #E8EAED;
+    --color-text-secondary: #9DA1A8;
+    --color-text-muted:     #5C6068;
+    --color-text-inverted:  #1E1E1E;
+    --color-border-default: #3A3E46;
+    --color-border-subtle:  #2E323A;
   }
 }
 
@@ -251,13 +247,13 @@ button, input, select, textarea {
 }
 
 /* ═══════════════════════════════════════════════
-   项目自定义 Token（合并保留）
+   项目自定义 Token（蓝色系）
    ═══════════════════════════════════════════════ */
 :root {
-  /* 阴影（暖色调统一） */
-  --shadow-card:     0 2px 12px rgba(20, 20, 19, 0.07);
-  --shadow-elevated: 0 8px 32px rgba(20, 20, 19, 0.08);
-  --shadow-btn:      0 4px 12px rgba(217, 119, 87, 0.3);
+  /* 阴影（蓝色调） */
+  --shadow-card:     0 2px 12px rgba(0, 0, 0, 0.05);
+  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --shadow-btn:      0 4px 12px rgba(0, 170, 255, 0.25);
 
   /* UI 快捷别名 */
   --font-ui: var(--font-heading);
@@ -265,26 +261,45 @@ button, input, select, textarea {
   /* 兼容别名（旧代码引用） */
   --color-bg-surface:    var(--color-bg-raised);
   --color-bg-elevated:   var(--color-bg-overlay);
-  --color-bg-sidebar:    #F0EDE4;
+  --color-bg-sidebar:    #EEEEED;
   --color-bg-input:      var(--color-bg-overlay);
   --color-border:        var(--color-border-default);
-  --color-accent:        var(--color-accent-orange);
-  --color-accent-dim:    rgba(217, 119, 87, 0.12);
-  --color-accent-glow:   rgba(217, 119, 87, 0.18);
-  --color-success-dim:   rgba(107, 143, 71, 0.12);
-  --color-success-glow:  rgba(107, 143, 71, 0.12);
-  --color-warning-dim:   rgba(201, 148, 58, 0.12);
-  --color-error-dim:     rgba(192, 69, 58, 0.12);
-  --color-text-accent:   var(--color-accent-warm);
+  --color-accent:        var(--color-accent-orange);  /* 现在指向 #00AAFF */
+  --color-accent-dim:    rgba(0, 170, 255, 0.12);
+  --color-accent-glow:   rgba(0, 170, 255, 0.18);
+  --color-success-dim:   rgba(82, 196, 26, 0.12);
+  --color-success-glow:  rgba(82, 196, 26, 0.12);
+  --color-warning-dim:   rgba(250, 173, 20, 0.12);
+  --color-error-dim:     rgba(255, 77, 79, 0.12);
+  --color-text-accent:   var(--color-accent-warm);   /* 现在指向 #00AAFF */
   --color-text-success:  var(--color-success);
   --color-text-error:    var(--color-error);
   --color-text-warning:  var(--color-warning);
   --color-text-disabled: var(--color-text-muted);
   --color-numeric:       var(--color-accent-blue);
+
+  /* 蓝色系语义别名（兼容 thinking-lab-design-system.css 命名） */
+  --color-white:     #FFFFFF;
+  --color-gray-50:   #F5F5F5;
+  --color-gray-100:  #EEEDED;
+  --color-gray-200:  #D9D9D9;
+  --color-gray-400:  #B3B3B3;
+  --color-gray-500:  #848484;
+  --color-gray-900:  #1E1E1E;
+  --font-chinese:    'Microsoft YaHei', 'PingFang SC', sans-serif;
+  --font-english:    'Arial', 'Helvetica Neue', sans-serif;
+
+  /* 透明度规范（对齐Figma） */
+  --overlay-content:  rgba(255, 255, 255, 0.75);
+  --overlay-sidebar: rgba(255, 255, 255, 0.9);
+  --overlay-global:  rgba(255, 255, 255, 0.15);
+  --icon-inactive:   rgba(111, 159, 183, 0.5);
+  --icon-active:     rgba(111, 159, 183, 0.8);
+  --divider:         rgba(132, 132, 132, 0.2);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg-sidebar: #1E1D19;
+    --color-bg-sidebar: #2A2E36;
   }
 }

@@ -14,7 +14,7 @@ import { summarizeLegacyFlat, normalizeFlatDocType } from '../utils/flatStoreMig
 const LabContext = createContext(null)
 
 /** 右栏 Lab 模式；localStorage 若被写成旧值或非字符串，统一回落避免白屏 */
-const VALID_LAB_MODES = new Set(['dashboard', 'live', 'coach', 'archaeology'])
+const VALID_LAB_MODES = new Set(['landing', 'dashboard', 'live', 'coach', 'archaeology'])
 
 // Module 到分类节点 ID 的映射表
 const MODULE_TO_CATEGORY_ID = {
@@ -501,11 +501,11 @@ function labReducer(state, action) {
 export function LabProvider({ children }) {
   // 使用 localStorage 持久化
   const [activeLabTab, setActiveLabTab] = useLocalStorage(STORAGE_KEYS.ACTIVE_LAB_TAB, 'live')
-  const [storedActiveProjectId, setStoredActiveProjectId] = useLocalStorage(STORAGE_KEYS.ACTIVE_PROJECT, 'proj-1')
+  const [storedActiveProjectId, setStoredActiveProjectId] = useLocalStorage(STORAGE_KEYS.ACTIVE_PROJECT, null)
   const [storedProjectTree, setStoredProjectTree] = useLocalStorage(STORAGE_KEYS.PROJECT_TREE, DEFAULT_PROJECT_TREE)
   const [constitution, setConstitution] = useLocalStorage(STORAGE_KEYS.CONSTITUTION, '')
   const [recentDocuments, setRecentDocuments] = useLocalStorage(STORAGE_KEYS.RECENT_DOCUMENTS, [])
-  const [labMode, setLabMode] = useLocalStorage(STORAGE_KEYS.LAB_MODE, 'live')
+  const [labMode, setLabMode] = useLocalStorage(STORAGE_KEYS.LAB_MODE, 'landing')
   const [archaeologySessions, setArchaeologySessions] = useState([])
   const [activeArchaeologyId, setActiveArchaeologyId] = useLocalStorage(STORAGE_KEYS.ACTIVE_ARCHAEOLOGY_ID, null)
   const [storedExpertMode, setStoredExpertMode] = useLocalStorage(STORAGE_KEYS.EXPERT_MODE, 'pressure')
@@ -573,14 +573,14 @@ export function LabProvider({ children }) {
     setArchaeologySessions(sessions)
   }, [])
 
-  // 兼容旧版 practice；非法类型或非允许值时回落为 live，避免渲染分支异常 / 白屏
+  // 兼容旧版 practice；非法类型或非允许值时回落为 landing，避免渲染分支异常 / 白屏
   useEffect(() => {
     if (
       labMode === 'practice' ||
       typeof labMode !== 'string' ||
       !VALID_LAB_MODES.has(labMode)
     ) {
-      setLabMode('dashboard')
+      setLabMode('landing')
     }
   }, [labMode, setLabMode])
 
@@ -595,7 +595,10 @@ export function LabProvider({ children }) {
   }, [activeLabTab, setActiveLabTab])
 
   // 辅助函数
-  const activeProject = state.projectTree.find(p => p.id === state.activeProjectId) || state.projectTree[0]
+  const activeProject =
+    state.activeProjectId != null && state.activeProjectId !== ''
+      ? state.projectTree.find((p) => p.id === state.activeProjectId) ?? null
+      : null
   const allDocuments = activeProject ? collectDocuments([activeProject]) : []
 
   // 行动创建器

@@ -255,6 +255,28 @@
   height: 14px;
 }
 
+/** 对话框内分段：选中项白字，与蓝色滑块对比度一致 */
+.wb-module-segment--dialog .wb-segment-active {
+  color: var(--color-text-inverted) !important;
+}
+
+/** 压力引导页：主内容在对话框剩余高度内垂直居中（内容过长时仍可滚动） */
+.wb-pressure-dialog-guide-scroll {
+  display: flex;
+  flex-direction: column;
+}
+
+.wb-pressure-dialog-guide-inner {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  /** flex 子项 margin auto：在可滚动父级内真正吃掉剩余高度，实现短内容垂直居中 */
+  flex: 0 1 auto;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
 /**
  * 压力测试主对话框：与顶栏 / 左侧栏同一磨砂参数，大圆角承载对话区
  */
@@ -331,6 +353,15 @@
     transform: translateX(calc(min(6.5rem, (250px - var(--wb-rail-width)) / 2)));
   }
 
+  /**
+   * 压力对话框已在中间列玻璃容器内，不应再套用阅读区右移，
+   * 否则整块问候区/卡片会偏右，左侧留白明显大于右侧。
+   */
+  .wb-pressure-dialog .wb-thread,
+  .wb-pressure-dialog .wb-arch-middle-shift {
+    transform: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .wb-shell .wb-thread,
     .wb-shell .wb-arch-middle-shift {
@@ -356,4 +387,119 @@
   --color-accent-orange: var(--color-accent-orange);
   --color-accent-warm: var(--color-accent-warm);
   --shadow-btn: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+/**
+ * LiveLab 对话区：AI 无底衬卡片，Markdown 结构化（工作台与常规演练共用）
+ */
+.live-lab-assistant-md {
+  font-family: var(--font-body-cn), var(--font-body), Georgia, serif;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--color-text-primary);
+}
+
+.wb-thread .live-lab-assistant-md {
+  color: var(--wb-text, var(--color-text-primary));
+}
+
+.live-lab-assistant-md > :first-child {
+  margin-top: 0;
+}
+
+.live-lab-assistant-md h1,
+.live-lab-assistant-md h2,
+.live-lab-assistant-md h3,
+.live-lab-assistant-md h4 {
+  font-family: var(--font-heading-cn), var(--font-heading), system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  margin-top: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.live-lab-assistant-md h1 {
+  font-size: 1.05rem;
+}
+
+.live-lab-assistant-md h2 {
+  font-size: 1rem;
+}
+
+.live-lab-assistant-md h3,
+.live-lab-assistant-md h4 {
+  font-size: 0.9375rem;
+}
+
+.live-lab-assistant-md p {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.live-lab-assistant-md p:first-child {
+  margin-top: 0;
+}
+
+.live-lab-assistant-md ul,
+.live-lab-assistant-md ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.live-lab-assistant-md li {
+  margin: 0.2rem 0;
+}
+
+.live-lab-assistant-md li > p {
+  margin: 0.15rem 0;
+}
+
+.live-lab-assistant-md blockquote {
+  margin: 0.6rem 0;
+  padding: 0.35rem 0 0.35rem 0.85rem;
+  border-left: 3px solid rgba(15, 23, 42, 0.12);
+  color: var(--color-text-secondary);
+}
+
+.live-lab-assistant-md hr {
+  border: 0;
+  border-top: 1px solid rgba(15, 23, 42, 0.07);
+  margin: 1rem 0;
+}
+
+.live-lab-assistant-md pre {
+  margin: 0.65rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--wb-radius-btn, 12px);
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.live-lab-assistant-md code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.8125em;
+  padding: 0.1em 0.35em;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.live-lab-assistant-md pre code {
+  padding: 0;
+  background: transparent;
+  font-size: inherit;
+}
+
+.live-lab-assistant-md a {
+  color: var(--color-brand-blue);
+  word-break: break-word;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.live-lab-assistant-md strong {
+  font-weight: 600;
 }

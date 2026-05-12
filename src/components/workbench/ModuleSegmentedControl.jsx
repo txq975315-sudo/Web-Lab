@@ -96,11 +96,19 @@ export default function ModuleSegmentedControl({ variant = 'default' }) {
           top: dialog ? 3 : 4,
           bottom: dialog ? 3 : 4,
           left: dialog ? 3 : 4,
-          background: 'var(--wb-segment-thumb)',
-          border: '1px solid var(--wb-segment-thumb-border)',
+          background: dialog
+            ? 'color-mix(in srgb, var(--color-brand-blue) 92%, #ffffff)'
+            : 'var(--wb-segment-thumb)',
+          border: dialog
+            ? '1px solid color-mix(in srgb, var(--color-brand-blue) 55%, rgba(255,255,255,0.5))'
+            : '1px solid var(--wb-segment-thumb-border)',
           transform: thumbOn ? `translateX(calc(${activeIndex} * 100%))` : 'translateX(0)',
           opacity: thumbOn ? 1 : 0,
-          boxShadow: thumbOn ? '0 1px 3px rgba(20, 20, 19, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.95)' : 'none',
+          boxShadow: thumbOn
+            ? dialog
+              ? '0 2px 10px rgba(0, 120, 200, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.35)'
+              : '0 1px 3px rgba(20, 20, 19, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.95)'
+            : 'none',
         }}
         aria-hidden
       />
@@ -125,7 +133,7 @@ export default function ModuleSegmentedControl({ variant = 'default' }) {
             } ${active ? 'wb-segment-active' : 'wb-segment-surface hover:bg-white/40'}`}
             style={
               active
-                ? { color: 'var(--color-text-primary)' }
+                ? { color: dialog ? 'var(--color-text-inverted)' : 'var(--color-text-primary)' }
                 : { color: 'var(--color-text-secondary)' }
             }
           >

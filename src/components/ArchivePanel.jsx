@@ -78,7 +78,19 @@ function DocumentConflictWarning({ conflicts, onStartPressureTest }) {
   )
 }
 
-function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasConflicts, conflicts, onStartPressureTest, allDocsMap }) {
+function ReadingView({
+  doc,
+  categoryName,
+  onEdit,
+  onSummonMentor,
+  onDelete,
+  hasConflicts,
+  conflicts,
+  onStartPressureTest,
+  allDocsMap,
+  compact = false,
+  onRequestClose,
+}) {
   const { selectDocument } = useLab()
   
   // 安全检查
@@ -112,10 +124,15 @@ function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasC
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="px-6 py-4 border-b border-lab-border-subtle flex items-start justify-between">
-        <div>
-          <h1 className="text-lg font-semibold font-display text-lab-ink">{doc?.name || '未命名文档'}</h1>
-          <div className="flex items-center gap-3 mt-1">
+      <div
+        className={`flex items-start justify-between ${compact ? 'border-b px-3 py-2' : 'px-6 py-4 border-b border-lab-border-subtle'}`}
+        style={compact ? { borderColor: 'rgba(15, 23, 42, 0.08)' } : undefined}
+      >
+        <div className="min-w-0 flex-1 pr-2">
+          <h1 className={`font-semibold font-display text-lab-ink ${compact ? 'text-sm' : 'text-lg'}`}>
+            {doc?.name || '未命名文档'}
+          </h1>
+          <div className={`flex flex-wrap items-center gap-2 ${compact ? 'mt-0.5' : 'mt-1'}`}>
             <span className="text-xs text-lab-muted">{categoryName}</span>
             {doc?.updatedAt && (
               <span className="text-xs text-lab-faint">
@@ -124,11 +141,24 @@ function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasC
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+          {onRequestClose && (
+            <button
+              type="button"
+              onClick={onRequestClose}
+              className="rounded-lg p-1.5 text-lab-muted transition-colors hover:bg-[rgba(15,23,42,0.06)] hover:text-lab-ink"
+              aria-label="关闭文档"
+              title="关闭文档"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleDeleteClick}
-            className="text-xs px-3 py-1.5 rounded-lg font-medium text-[var(--color-text-inverted)] transition-all hover:opacity-95 active:scale-[0.98]"
+            className={`rounded-lg font-medium text-[var(--color-text-inverted)] transition-all hover:opacity-95 active:scale-[0.98] ${compact ? 'px-2 py-1 text-[10px]' : 'text-xs px-3 py-1.5'}`}
             style={{ backgroundColor: 'var(--color-error)', borderRadius: '9px' }}
           >
             删除
@@ -136,7 +166,7 @@ function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasC
           <button
             type="button"
             onClick={onSummonMentor}
-            className="text-xs px-3 py-1.5 rounded-lg font-medium text-[var(--color-text-inverted)] transition-all hover:opacity-95 active:scale-[0.98]"
+            className={`rounded-lg font-medium text-[var(--color-text-inverted)] transition-all hover:opacity-95 active:scale-[0.98] ${compact ? 'px-2 py-1 text-[10px]' : 'text-xs px-3 py-1.5'}`}
             style={{ backgroundColor: 'var(--color-accent-blue)', borderRadius: '9px' }}
           >
             ✨ 召唤导师
@@ -144,22 +174,25 @@ function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasC
           <button
             type="button"
             onClick={onEdit}
-            className="text-xs px-3 py-1.5 rounded-lg font-medium text-lab-muted hover:bg-lab-accent-dim hover:text-lab-accent-warm transition-all"
+            className={`rounded-lg font-medium text-lab-muted transition-colors hover:bg-lab-accent-dim hover:text-lab-accent-warm ${compact ? 'px-2 py-1 text-[10px]' : 'text-xs px-3 py-1.5'}`}
           >
             编辑
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-6 py-4">
+      <div className={`flex-1 overflow-auto ${compact ? 'px-2 py-2' : 'px-6 py-4'}`}>
         {hasConflicts && conflicts && (
-          <DocumentConflictWarning 
-            conflicts={conflicts} 
-            onStartPressureTest={onStartPressureTest} 
-          />
+          <DocumentConflictWarning conflicts={conflicts} onStartPressureTest={onStartPressureTest} />
         )}
 
-        <div className="p-6 rounded-xl bg-lab-overlay border border-lab-border-subtle shadow-card">
+        <div
+          className={
+            compact
+              ? 'rounded-md px-1 py-1'
+              : 'p-6 rounded-xl bg-lab-overlay border border-lab-border-subtle shadow-card'
+          }
+        >
           <DocumentRenderer doc={doc} />
         </div>
 
@@ -216,7 +249,7 @@ function ReadingView({ doc, categoryName, onEdit, onSummonMentor, onDelete, hasC
   )
 }
 
-function EditingView({ doc, categoryName, onSave, onCancel, allDocsMap }) {
+function EditingView({ doc, categoryName, onSave, onCancel, allDocsMap, compact = false, onRequestClose }) {
   const handleSave = (data) => {
     onSave(data)
   }
@@ -236,30 +269,43 @@ function EditingView({ doc, categoryName, onSave, onCancel, allDocsMap }) {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="px-6 py-4 border-b border-lab-border-subtle flex items-start justify-between">
+      <div
+        className={`flex items-start justify-between ${compact ? 'border-b px-3 py-2' : 'px-6 py-4 border-b border-lab-border-subtle'}`}
+        style={compact ? { borderColor: 'rgba(15, 23, 42, 0.08)' } : undefined}
+      >
         <div>
-          <h1 className="text-lg font-semibold font-display text-lab-ink">{doc?.name || '未命名文档'}</h1>
-          <div className="flex items-center gap-3 mt-1">
+          <h1 className={`font-semibold font-display text-lab-ink ${compact ? 'text-sm' : 'text-lg'}`}>
+            {doc?.name || '未命名文档'}
+          </h1>
+          <div className={`flex items-center gap-3 ${compact ? 'mt-0.5' : 'mt-1'}`}>
             <span className="text-xs text-lab-muted">{categoryName}</span>
             <span className="text-xs text-lab-accent-warm">编辑中</span>
           </div>
         </div>
+        {onRequestClose && (
+          <button
+            type="button"
+            onClick={onRequestClose}
+            className="rounded-lg p-1.5 text-lab-muted transition-colors hover:bg-[rgba(15,23,42,0.06)]"
+            aria-label="关闭文档"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
       </div>
 
-      <div className="flex-1 overflow-auto px-6 py-4">
-        <div className="p-6 rounded-xl bg-lab-overlay border border-lab-border-subtle shadow-card">
-          <DocumentForm 
-            doc={doc} 
-            onSave={handleSave} 
-            onCancel={onCancel} 
-          />
+      <div className={`flex-1 overflow-auto ${compact ? 'px-2 py-2' : 'px-6 py-4'}`}>
+        <div className={compact ? '' : 'p-6 rounded-xl bg-lab-overlay border border-lab-border-subtle shadow-card'}>
+          <DocumentForm doc={doc} onSave={handleSave} onCancel={onCancel} />
         </div>
       </div>
     </div>
   )
 }
 
-export default function ArchivePanel() {
+export default function ArchivePanel({ variant = 'page' }) {
   const { 
     projectTree, 
     activeProjectId, 
@@ -384,26 +430,40 @@ ${selectedDoc.content || JSON.stringify(selectedDoc.fields || {}, null, 2)}
   const hasConflicts = activeDocId && documentConflicts[activeDocId]?.hasConflict
   const conflicts = activeDocId ? documentConflicts[activeDocId] : null
 
+  const isInline = variant === 'inline'
+  const compact = isInline
+  const closeInline = isInline ? () => selectDocument(null) : undefined
+
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-lab-base">
-      <div className="px-6 pt-4 pb-2">
-        <p className="text-xs text-lab-muted">{currentProject?.name || ''}</p>
-      </div>
+    <div
+      className={
+        isInline
+          ? 'flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-transparent'
+          : 'h-full flex flex-col overflow-hidden bg-lab-base'
+      }
+    >
+      {!isInline && (
+        <div className="px-6 pt-4 pb-2">
+          <p className="text-xs text-lab-muted">{currentProject?.name || ''}</p>
+        </div>
+      )}
 
       {!activeDocId && !editingDocId ? (
         <div className="flex-1">
           <EmptyState projectName={currentProject?.name || '思维实验室'} />
         </div>
       ) : selectedDoc && isEditing ? (
-        <EditingView 
+        <EditingView
           doc={selectedDoc}
           categoryName={categoryName}
           onSave={handleSave}
           onCancel={handleCancel}
           allDocsMap={allDocsMap}
+          compact={compact}
+          onRequestClose={closeInline}
         />
       ) : selectedDoc ? (
-        <ReadingView 
+        <ReadingView
           doc={selectedDoc}
           categoryName={categoryName}
           onEdit={handleEdit}
@@ -413,6 +473,8 @@ ${selectedDoc.content || JSON.stringify(selectedDoc.fields || {}, null, 2)}
           conflicts={conflicts}
           onStartPressureTest={handleStartPressureTest}
           allDocsMap={allDocsMap}
+          compact={compact}
+          onRequestClose={closeInline}
         />
       ) : (
         <div className="flex-1 flex items-center justify-center">
