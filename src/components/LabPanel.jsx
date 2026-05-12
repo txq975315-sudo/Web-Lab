@@ -8,6 +8,7 @@ import { buildLiveLabSystemPrompt, ARCHAEOLOGY_PROMPT } from '../config/aiPrompt
 import GrowthCoachPanel from './growthCoach/GrowthCoachPanel'
 import { LAB_BACKGROUND_IMAGES, getLabBackgroundIndex } from '../config/labBackgrounds'
 import PressureTestWorkbench from './workbench/PressureTestWorkbench'
+import BottomToolbar from './workbench/BottomToolbar'
 
 function DragToolbar({ selectedText, position, onClose, messageId }) {
   const handleDragStart = (e) => {
@@ -280,7 +281,7 @@ function LiveLab({
                     message.type === 'user'
                       ? workbenchUi
                         ? 'var(--wb-primary)'
-                        : 'var(--color-accent-orange)'
+                        : 'var(--color-brand-blue)'
                       : message.type === 'system'
                       ? 'var(--color-bg-inverted)'
                       : 'var(--color-bg-overlay)',
@@ -579,7 +580,7 @@ function ArchaeologyLab() {
             <>
               <svg className="animate-spin" width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <circle cx="7" cy="7" r="5.5" stroke="var(--color-text-muted)" strokeWidth="1.5" />
-                <path d="M12.5 7A5.5 5.5 0 0 0 7 1.5" stroke="var(--color-accent-orange)" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M12.5 7A5.5 5.5 0 0 0 7 1.5" stroke="var(--color-brand-blue)" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
               正在扫描地层...
             </>
@@ -896,23 +897,28 @@ export default function LabPanel({
 
         {wbLive ? (
           pressureGuideOpen ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth py-4">
-              <div className="wb-thread w-full">
-                <PressureTestWorkbench
-                  draftValue={stressDraft}
-                  setDraftValue={setStressDraft}
-                  disabled={false}
-                  onSubmit={() => {
-                    if (!stressDraft.trim()) return
-                    const draft = stressDraft.trim()
-                    dismissPressureGuide()
-                    setInputValue(draft)
-                    setStressDraft('')
-                    window.setTimeout(() => {
-                      workbenchComposerRef.current?.querySelector('[data-send-button]')?.click()
-                    }, 120)
-                  }}
-                />
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="min-h-0 flex-1 overflow-y-auto scroll-smooth py-4">
+                <div className="wb-thread w-full">
+                  <PressureTestWorkbench
+                    draftValue={stressDraft}
+                    setDraftValue={setStressDraft}
+                    disabled={false}
+                    onSubmit={() => {
+                      if (!stressDraft.trim()) return
+                      const draft = stressDraft.trim()
+                      dismissPressureGuide()
+                      setInputValue(draft)
+                      setStressDraft('')
+                      window.setTimeout(() => {
+                        workbenchComposerRef.current?.querySelector('[data-send-button]')?.click()
+                      }, 120)
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="shrink-0">
+                <BottomToolbar />
               </div>
             </div>
           ) : (

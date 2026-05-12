@@ -114,10 +114,10 @@ function RailIconSettings() {
 export default function WorkbenchIconRail({ activeTool, onToolChange, onSettingsClick }) {
   return (
     <nav
-      className="wb-rail-glass flex h-full min-h-0 w-[44px] shrink-0 flex-col items-center gap-0.5 py-2 pl-1.5"
+      className="wb-rail-glass flex h-full min-h-0 w-[81px] shrink-0 flex-col items-center justify-center gap-1 py-2"
       aria-label="工作台工具"
     >
-      <div className="flex flex-col items-center gap-0.5">
+      <div className="flex flex-col items-center justify-center gap-1">
         {TOOLS.map((t) => {
           const active = activeTool === t.id
           const Icon = t.Icon
@@ -139,15 +139,12 @@ export default function WorkbenchIconRail({ activeTool, onToolChange, onSettings
             </button>
           )
         })}
-      </div>
-
-      <div className="mt-auto flex w-full flex-col items-center pt-2">
         <button
           type="button"
           title="设置"
           aria-label="设置"
           onClick={onSettingsClick}
-          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-200 hover:bg-[var(--wb-primary-muted)] hover:text-[var(--color-text-primary)]"
+          className="mt-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-200 hover:bg-[var(--wb-primary-muted)] hover:text-[var(--color-text-primary)]"
         >
           <RailIconSettings />
         </button>

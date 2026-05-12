@@ -9,6 +9,7 @@ import ModuleSegmentedControl from './components/workbench/ModuleSegmentedContro
 import WorkbenchIconRail from './components/workbench/WorkbenchIconRail'
 import WorkbenchLeftPanel from './components/workbench/WorkbenchLeftPanel'
 import RightInsightDeck from './components/workbench/RightInsightDeck'
+import LandingScrollExperience from './components/LandingScrollExperience'
 import { initStore } from './utils/dataStore'
 import { useState, useEffect, useCallback } from 'react'
 import AppErrorBoundary from './components/AppErrorBoundary'
@@ -33,6 +34,7 @@ function AppContent() {
   const activeProject = projects?.find((p) => p.id === activeProjectId)
   const activeArchSession = archaeologySessions?.find((s) => s.id === activeArchaeologyId)
 
+  /** 必须与 landing 早退无关：早退后若再挂载更多 hooks 会违反 Rules of Hooks 并白屏 */
   useEffect(() => {
     if (activeDocId) {
       setRailTool(null)
@@ -42,6 +44,16 @@ function AppContent() {
   useEffect(() => {
     setRailTool(null)
   }, [labMode])
+
+  if (labMode === 'landing') {
+    return (
+      <>
+        <LandingScrollExperience />
+        <CommandPalette />
+        <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
+      </>
+    )
+  }
 
   const renderMain = () => {
     if (activeDocId) {
@@ -128,9 +140,9 @@ function AppContent() {
         <div className="flex min-w-0 justify-start">
           <button
             type="button"
-            onClick={() => switchLabMode('dashboard')}
+            onClick={() => switchLabMode('landing')}
             className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors duration-200 hover:bg-[var(--wb-primary-muted)]"
-            style={{ color: 'var(--color-accent-orange)' }}
+            style={{ color: 'var(--color-brand-blue)' }}
             aria-label="思维训练工作台"
             title="返回首页"
           >
@@ -152,45 +164,15 @@ function AppContent() {
         <div className="flex min-w-0 items-center justify-end gap-2">
           <button
             type="button"
-            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-[var(--wb-primary-muted)]"
-            style={{ color: 'var(--color-text-secondary)' }}
-            aria-label="通知"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M13.73 21a2 2 0 01-3.46 0" strokeLinecap="round" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border font-display text-xs font-semibold"
+            className="wb-header-placeholder-btn flex h-9 min-w-[2.75rem] cursor-default items-center justify-center rounded-full border px-3 font-display text-xs font-semibold"
             style={{
-              background: 'var(--color-bg-raised)',
               borderColor: 'var(--color-border-subtle)',
               color: 'var(--color-text-primary)',
             }}
-            aria-label="账户"
+            aria-label="预留入口"
+            title="功能预留"
           >
             AL
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowSettings(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--wb-primary-muted)] hover:text-[var(--color-text-primary)]"
-            title="设置"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              />
-              <path
-                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              />
-            </svg>
           </button>
         </div>
       </header>
@@ -219,24 +201,33 @@ function AppContent() {
         </div>
       )}
 
-      <div className="relative flex min-h-0 flex-1 overflow-hidden">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-1 overflow-hidden">   {/* 水平行：图标栏 + 面板 + 主内容 */}
         <WorkbenchIconRail
           activeTool={railTool}
           onToolChange={setRailTool}
           onSettingsClick={() => setShowSettings(true)}
         />
         {railTool && (
-          <div className="fixed inset-y-0 left-[44px] z-50 flex lg:relative lg:inset-auto lg:left-0 lg:z-auto">
-            <WorkbenchLeftPanel tool={railTool} onClose={closeRail} />
-          </div>
+          <>
+            {/* 展开态渐变条（桌面端） */}
+            <div
+              className="pointer-events-none relative hidden h-full w-[465px] shrink-0 bg-gradient-to-r from-white/60 to-white/80 lg:block"
+              aria-hidden="true"
+            />
+            <div className="fixed inset-y-0 left-[81px] z-50 flex lg:relative lg:inset-auto lg:left-0 lg:z-auto">
+              <WorkbenchLeftPanel tool={railTool} onClose={closeRail} />
+            </div>
+          </>
         )}
 
-        <div className="wb-workbench-row flex min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent pb-3 pt-3 pl-6 pr-4 md:pl-8 md:pr-6 lg:pl-10 lg:pr-8 xl:px-10">
-          <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent">
+        <div className="wb-workbench-row flex min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent px-4">
+          <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[36px] bg-white/75 shadow-[var(--wb-shadow-card)]">
             {renderMain()}
           </main>
 
           <RightInsightDeck className="hidden shrink-0 xl:flex" />
+        </div>
         </div>
       </div>
 

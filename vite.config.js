@@ -17,6 +17,9 @@ export default defineConfig(({ mode }) => {
       css: false,
     },
     server: {
+      host: true,
+      port: 5173,
+      strictPort: false,
       proxy: {
         '/api/deepseek': {
           target: 'https://api.deepseek.com/v1',
