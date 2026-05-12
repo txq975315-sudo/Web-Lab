@@ -31,6 +31,8 @@ function AppContent() {
 
   const closeRail = useCallback(() => setRailTool(null), [])
 
+  const liveWorkbenchSurface = labMode === 'live' && !activeDocId
+
   const activeProject = projects?.find((p) => p.id === activeProjectId)
   const activeArchSession = archaeologySessions?.find((s) => s.id === activeArchaeologyId)
 
@@ -120,7 +122,14 @@ function AppContent() {
     if (labMode === 'live') {
       return (
         <div className="h-full min-h-0 overflow-hidden">
-          <LabPanel hideTopTabs flushChrome workbenchLayout hideChatHistorySidebar />
+          <LabPanel
+            hideTopTabs
+            flushChrome
+            workbenchLayout
+            hideChatHistorySidebar
+            workbenchRailTool={railTool}
+            onWorkbenchRailToolClose={closeRail}
+          />
         </div>
       )
     }
@@ -134,48 +143,50 @@ function AppContent() {
 
   return (
     <div className="wb-shell flex h-screen flex-col overflow-hidden font-sans">
-      <header
-        className="wb-top-header grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 py-2.5 pl-1.5 pr-6 md:pr-8 lg:pr-10 xl:pr-12"
-      >
-        <div className="flex min-w-0 justify-start">
-          <button
-            type="button"
-            onClick={() => switchLabMode('landing')}
-            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors duration-200 hover:bg-[var(--wb-primary-muted)]"
-            style={{ color: 'var(--color-brand-blue)' }}
-            aria-label="思维训练工作台"
-            title="返回首页"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
+      {!liveWorkbenchSurface && (
+        <header
+          className="wb-top-header grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 py-2.5 pl-1.5 pr-6 md:pr-8 lg:pr-10 xl:pr-12"
+        >
+          <div className="flex min-w-0 justify-start">
+            <button
+              type="button"
+              onClick={() => switchLabMode('landing')}
+              className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors duration-200 hover:bg-[var(--wb-primary-muted)]"
+              style={{ color: 'var(--color-brand-blue)' }}
+              aria-label="思维训练工作台"
+              title="返回首页"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
 
-        <div className="flex min-w-0 justify-center px-1">
-          <ModuleSegmentedControl />
-        </div>
+          <div className="flex min-w-0 justify-center px-1">
+            <ModuleSegmentedControl />
+          </div>
 
-        <div className="flex min-w-0 items-center justify-end gap-2">
-          <button
-            type="button"
-            className="wb-header-placeholder-btn flex h-9 min-w-[2.75rem] cursor-default items-center justify-center rounded-full border px-3 font-display text-xs font-semibold"
-            style={{
-              borderColor: 'var(--color-border-subtle)',
-              color: 'var(--color-text-primary)',
-            }}
-            aria-label="预留入口"
-            title="功能预留"
-          >
-            AL
-          </button>
-        </div>
-      </header>
+          <div className="flex min-w-0 items-center justify-end gap-2">
+            <button
+              type="button"
+              className="wb-header-placeholder-btn flex h-9 min-w-[2.75rem] cursor-default items-center justify-center rounded-full border px-3 font-display text-xs font-semibold"
+              style={{
+                borderColor: 'var(--color-border-subtle)',
+                color: 'var(--color-text-primary)',
+              }}
+              aria-label="预留入口"
+              title="功能预留"
+            >
+              AL
+            </button>
+          </div>
+        </header>
+      )}
 
       {!activeDocId && labMode === 'coach' && activeProject && (
         <div
@@ -207,22 +218,32 @@ function AppContent() {
           activeTool={railTool}
           onToolChange={setRailTool}
           onSettingsClick={() => setShowSettings(true)}
+          highlightProjectsWhenIdle={liveWorkbenchSurface}
         />
-        {railTool && (
+        {railTool && !liveWorkbenchSurface && (
           <>
-            {/* 展开态渐变条（桌面端） */}
             <div
               className="pointer-events-none relative hidden h-full w-[465px] shrink-0 bg-gradient-to-r from-white/60 to-white/80 lg:block"
               aria-hidden="true"
             />
-            <div className="fixed inset-y-0 left-[81px] z-50 flex lg:relative lg:inset-auto lg:left-0 lg:z-auto">
-              <WorkbenchLeftPanel tool={railTool} onClose={closeRail} />
+            <div className="fixed inset-y-0 left-[var(--wb-rail-width)] z-50 flex lg:relative lg:inset-auto lg:left-0 lg:z-auto">
+              <WorkbenchLeftPanel tool={railTool} onClose={closeRail} surface="solid" />
             </div>
           </>
         )}
 
-        <div className="wb-workbench-row flex min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent px-4">
-          <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[36px] bg-white/75 shadow-[var(--wb-shadow-card)]">
+        <div
+          className={`wb-workbench-row flex min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent px-4 ${
+            liveWorkbenchSurface ? 'wb-workbench-row--live' : ''
+          }`}
+        >
+          <main
+            className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
+              liveWorkbenchSurface
+                ? 'rounded-none bg-transparent shadow-none'
+                : 'rounded-[36px] bg-white/75 shadow-[var(--wb-shadow-card)]'
+            }`}
+          >
             {renderMain()}
           </main>
 

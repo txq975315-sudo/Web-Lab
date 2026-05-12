@@ -33,7 +33,7 @@ function DailyGoalRing({ current, total }) {
             cy="40"
             r={r}
             fill="none"
-            stroke="var(--color-accent-orange)"
+            stroke="var(--color-brand-blue)"
             strokeWidth="7"
             strokeLinecap="round"
             strokeDasharray={c}
@@ -131,8 +131,8 @@ export default function RightInsightDeck({ className = '' }) {
           <div
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl backdrop-blur-sm"
             style={{
-              color: 'var(--color-accent-orange)',
-              background: 'color-mix(in srgb, var(--color-accent-orange) 12%, var(--color-bg-raised))',
+              color: 'var(--color-brand-blue)',
+              background: 'color-mix(in srgb, var(--color-brand-blue) 12%, var(--color-bg-raised))',
             }}
           >
             <IconLightbulb />

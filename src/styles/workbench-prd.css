@@ -3,6 +3,12 @@
  * 基于base.css蓝色系Token，定义工作台专用wb-*变量
  */
 :root {
+  /** 与落地页顶栏一致（LandingScrollExperience NAV_BAR_BG + blur + 边线） */
+  --wb-landing-nav-bg: rgba(255, 255, 255, 0.68);
+  --wb-landing-nav-blur: 16px;
+  --wb-landing-nav-border-bottom: rgba(255, 255, 255, 0.45);
+  --wb-landing-nav-inset: 0 1px 0 rgba(255, 255, 255, 0.35) inset;
+
   /* 语义色：锚定蓝色系 base token */
   --wb-text: var(--color-text-primary);
   --wb-muted: var(--color-text-secondary);
@@ -45,6 +51,12 @@
   --wb-radius-xl: 24px;
   --wb-radius-pill: 9999px;
   --wb-radius-btn: 13px;
+
+  /** 左侧图标栏宽度（压力工作台等） */
+  --wb-rail-width: 64px;
+
+  /** 无顶栏时主区顶边距：2 × 原顶栏与内容区之间视觉间隔（约 6px） */
+  --wb-live-top-gap-unit: 6px;
 
   /** ChatGPT 式主阅读宽度 */
   --wb-thread-max: 56rem;
@@ -137,10 +149,6 @@
   transition: color 0.18s ease;
 }
 
-.wb-left-panel-pop {
-  animation: wb-left-in 0.18s ease-out both;
-}
-
 @keyframes wb-left-in {
   from {
     opacity: 0;
@@ -152,6 +160,44 @@
   }
 }
 
+.wb-left-panel-pop {
+  animation: wb-left-in 0.18s ease-out both;
+}
+
+@keyframes wb-left-in-translucent {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/** 压力工作台左栏浮层：透明底 + 轻模糊（对齐图3/图4） */
+.wb-left-panel-transparent {
+  animation: wb-left-in-translucent 0.2s ease-out both;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 8px 32px rgba(20, 20, 19, 0.06);
+}
+
+.wb-left-panel-transparent .wb-transparent-head {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.wb-left-panel-transparent .wb-transparent-list-row {
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.wb-left-panel-transparent .wb-transparent-track {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .wb-composer-bar {
   border-radius: var(--wb-radius-xl);
   border: 1px solid var(--color-border-subtle);
@@ -161,17 +207,13 @@
   box-shadow: var(--wb-shadow-float);
 }
 
-/** 顶栏：与背景融为一体 */
+/** 顶栏：与落地页顶栏同一套底纹参数 */
 .wb-top-header {
-  border-bottom: 1px solid transparent;
-  background: linear-gradient(
-    180deg,
-    rgba(245, 245, 245, 0.35) 0%,
-    rgba(245, 245, 245, 0) 100%
-  );
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: none;
+  border-bottom: 1px solid var(--wb-landing-nav-border-bottom);
+  background: var(--wb-landing-nav-bg);
+  backdrop-filter: blur(var(--wb-landing-nav-blur));
+  -webkit-backdrop-filter: blur(var(--wb-landing-nav-blur));
+  box-shadow: var(--wb-landing-nav-inset);
 }
 
 /** 顶栏右侧预留按钮：浅底纹，后续可接账户/菜单等 */
@@ -191,11 +233,79 @@
   backdrop-filter: none;
 }
 
-/** 左侧图标栏：变窄、透明底，仅图标存在感 */
+/** 左侧图标栏：落地页顶栏同款底纹；右侧分隔线 */
 .wb-rail-glass {
-  background: var(--wb-rail-bg);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  background: var(--wb-landing-nav-bg);
+  backdrop-filter: blur(var(--wb-landing-nav-blur));
+  -webkit-backdrop-filter: blur(var(--wb-landing-nav-blur));
+  border-right: 1px solid var(--wb-landing-nav-border-bottom);
+  box-shadow: var(--wb-landing-nav-inset);
+}
+
+/** 左侧栏实体通铺（略提高不透明度，与云底区分） */
+.wb-rail-glass.wb-rail-solid {
+  background: rgba(252, 252, 252, 0.96);
+  border-right: 1px solid rgba(210, 220, 232, 0.85);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
+/** 对话框内压缩版模块切换：整体高度约 2/3 */
+.wb-module-segment--dialog svg {
+  width: 14px;
+  height: 14px;
+}
+
+/**
+ * 压力测试主对话框：与顶栏 / 左侧栏同一磨砂参数，大圆角承载对话区
+ */
+.wb-pressure-dialog {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  border-radius: var(--wb-radius-xl);
+  background: var(--wb-landing-nav-bg);
+  backdrop-filter: blur(var(--wb-landing-nav-blur));
+  -webkit-backdrop-filter: blur(var(--wb-landing-nav-blur));
+  border: 1px solid var(--wb-landing-nav-border-bottom);
+  box-shadow: var(--wb-shadow-float), var(--wb-landing-nav-inset);
+  overflow: hidden;
+}
+
+/** 压力对话框顶：模块切换条（无底纹，与对话框玻璃一体） */
+.wb-pressure-dialog-segment {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.5rem 0.75rem 0.625rem;
+  border-bottom: none;
+  background: transparent;
+}
+
+/** 对话框内嵌卡片：略轻一层，避免双重厚玻璃 */
+.wb-pressure-dialog .wb-card {
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 16px rgba(20, 20, 19, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+/** 压力测试：中间项目树列（无底纹，叠在云图上） */
+.wb-pressure-tree-column {
+  color: var(--wb-text);
+}
+
+/** 无顶栏压力页：左侧栏顶对齐安全区，避免刘海遮挡 */
+.wb-shell:has(.wb-workbench-row--live) .wb-rail-w {
+  padding-top: max(0.25rem, env(safe-area-inset-top, 0px));
+}
+
+/** 压力工作台：无全局顶栏时，主列顶内边距 = 2×原间隔；刘海屏取较大值 */
+.wb-workbench-row--live {
+  padding-top: max(calc(2 * var(--wb-live-top-gap-unit)), env(safe-area-inset-top, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /**
@@ -213,12 +323,12 @@
 
 /**
  * xl：右侧信息栏比左侧图标栏宽，中间列几何中心偏左；顶栏分段控件在视口居中。
- * 阅读区整体右移 (250px−44px)/2，与「练·学·看」共用垂直中线。
+ * 阅读区整体右移 (250px − 左侧栏宽)/2，与「练·学·看」共用垂直中线。
  */
 @media (min-width: 1280px) {
   .wb-shell .wb-thread,
   .wb-shell .wb-arch-middle-shift {
-    transform: translateX(calc(min(6.5rem, (250px - 44px) / 2)));
+    transform: translateX(calc(min(6.5rem, (250px - var(--wb-rail-width)) / 2)));
   }
 
   @media (prefers-reduced-motion: reduce) {

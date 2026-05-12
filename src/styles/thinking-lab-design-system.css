@@ -1,6 +1,10 @@
 /*
  * ThinkingLab Design System
  * 基于DOCX官方蓝色系V1.0规范
+ *
+ * ⚠️ 已归档：蓝色系Token已合并到 base.css 中
+ * 本文件保留作为参考，不再被 main.jsx 引入
+ * 如需使用其中的组件类（.card-primary 等），请迁移到 index.css
  */
 
 /* ==========================================
@@ -400,13 +404,13 @@
 /* 三栏布局容器 */
 .workbench-layout {
   display: grid;
-  grid-template-columns: 81px 1fr 280px;
+  grid-template-columns: var(--wb-rail-width, 64px) 1fr 280px;
   min-height: 100vh;
 }
 
 @media (max-width: 1200px) {
   .workbench-layout {
-    grid-template-columns: 81px 1fr;
+    grid-template-columns: var(--wb-rail-width, 64px) 1fr;
   }
 
   .workbench-right {

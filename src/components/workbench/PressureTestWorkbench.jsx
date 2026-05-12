@@ -72,16 +72,16 @@ export default function PressureTestWorkbench({ draftValue, setDraftValue, onSub
         <div
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full shadow-[0_1px_8px_rgba(20,20,19,0.06)]"
           style={{
-            background: 'color-mix(in srgb, var(--color-accent-orange) 14%, var(--color-bg-raised))',
+            background: 'color-mix(in srgb, var(--color-brand-blue) 14%, var(--color-bg-raised))',
           }}
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: 'var(--color-accent-orange)' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: 'var(--color-brand-blue)' }}>
             <path
               d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"
               stroke="currentColor"
               strokeWidth="1.65"
               strokeLinejoin="round"
-              fill="color-mix(in srgb, var(--color-accent-orange) 22%, transparent)"
+              fill="color-mix(in srgb, var(--color-brand-blue) 22%, transparent)"
             />
           </svg>
         </div>

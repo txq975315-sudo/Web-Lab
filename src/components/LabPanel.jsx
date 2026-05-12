@@ -8,7 +8,8 @@ import { buildLiveLabSystemPrompt, ARCHAEOLOGY_PROMPT } from '../config/aiPrompt
 import GrowthCoachPanel from './growthCoach/GrowthCoachPanel'
 import { LAB_BACKGROUND_IMAGES, getLabBackgroundIndex } from '../config/labBackgrounds'
 import PressureTestWorkbench from './workbench/PressureTestWorkbench'
-import BottomToolbar from './workbench/BottomToolbar'
+import WorkbenchMiddleToolColumn from './workbench/WorkbenchMiddleToolColumn'
+import ModuleSegmentedControl from './workbench/ModuleSegmentedControl'
 
 function DragToolbar({ selectedText, position, onClose, messageId }) {
   const handleDragStart = (e) => {
@@ -716,6 +717,8 @@ export default function LabPanel({
   flushChrome = false,
   hideChatHistorySidebar = false,
   workbenchLayout = false,
+  workbenchRailTool = null,
+  onWorkbenchRailToolClose,
 }) {
   const { labMode, switchLabMode, projectTree, activeProjectId, allHistoryMessages, viewingHistorySessionId, setViewingHistorySessionId, saveMessageToHistory, startNewSession, labMessageToSend, autoSendLabMessage, getMemorySummary, currentSessionId, setCurrentSessionId } = useLab()
   const [inputValue, setInputValue] = useState('')
@@ -896,76 +899,84 @@ export default function LabPanel({
         )}
 
         {wbLive ? (
-          pressureGuideOpen ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="min-h-0 flex-1 overflow-y-auto scroll-smooth py-4">
-                <div className="wb-thread w-full">
-                  <PressureTestWorkbench
-                    draftValue={stressDraft}
-                    setDraftValue={setStressDraft}
-                    disabled={false}
-                    onSubmit={() => {
-                      if (!stressDraft.trim()) return
-                      const draft = stressDraft.trim()
-                      dismissPressureGuide()
-                      setInputValue(draft)
-                      setStressDraft('')
-                      window.setTimeout(() => {
-                        workbenchComposerRef.current?.querySelector('[data-send-button]')?.click()
-                      }, 120)
-                    }}
-                  />
+          <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
+            <WorkbenchMiddleToolColumn tool={workbenchRailTool} onClose={onWorkbenchRailToolClose || (() => {})} />
+
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col pb-3 pl-1 pr-3 pt-0 md:pb-4 md:pl-2 md:pr-5" style={{ flex: '1 1 65%' }}>
+              <div className="wb-pressure-dialog min-h-0 flex-1">
+                <div className="wb-pressure-dialog-segment">
+                  <ModuleSegmentedControl variant="dialog" />
                 </div>
-              </div>
-              <div className="shrink-0">
-                <BottomToolbar />
+                {pressureGuideOpen ? (
+                  <>
+                    <div className="min-h-0 flex-1 overflow-y-auto scroll-smooth">
+                      <div className="wb-thread w-full px-4 py-4 md:px-6">
+                        <PressureTestWorkbench
+                          draftValue={stressDraft}
+                          setDraftValue={setStressDraft}
+                          disabled={false}
+                          onSubmit={() => {
+                            if (!stressDraft.trim()) return
+                            const draft = stressDraft.trim()
+                            dismissPressureGuide()
+                            setInputValue(draft)
+                            setStressDraft('')
+                            window.setTimeout(() => {
+                              workbenchComposerRef.current?.querySelector('[data-send-button]')?.click()
+                            }, 120)
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="wb-thread w-full shrink-0 px-4 pt-3 md:px-6">
+                      <div className="wb-substrip flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl px-4 py-2.5 md:px-5">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold" style={{ color: 'var(--wb-text)' }}>
+                            对话练习
+                          </p>
+                          <p className="truncate text-[11px]" style={{ color: 'var(--wb-muted)' }}>
+                            下方为追问与补充输入区；需要改初始想法可打开引导页
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={openPressureGuide}
+                          className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-200 hover:bg-[var(--wb-primary-muted)]"
+                          style={{
+                            color: 'var(--wb-primary-hex, #3a4a40)',
+                            background: 'rgba(15, 23, 42, 0.05)',
+                          }}
+                        >
+                          编辑初始想法
+                        </button>
+                      </div>
+                    </div>
+                    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+                      <LiveLab
+                        messages={messages}
+                        setMessages={setMessages}
+                        inputValue={inputValue}
+                        setInputValue={setInputValue}
+                        handleTextSelect={handleTextSelect}
+                        historyMessages={historyMessages}
+                        viewingHistorySessionId={viewingHistorySessionId}
+                        setViewingHistorySessionId={setViewingHistorySessionId}
+                        activeProjectId={activeProjectId}
+                        saveMessageToHistory={saveMessageToHistory}
+                        currentSessionId={currentSessionId}
+                        setCurrentSessionId={setCurrentSessionId}
+                        workbenchUi={wbLive}
+                        workbenchComposerRef={workbenchComposerRef}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-          ) : (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="wb-thread w-full shrink-0 pt-2">
-                <div className="wb-substrip flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl px-4 py-2.5 md:px-5">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold" style={{ color: 'var(--wb-text)' }}>
-                      对话练习
-                    </p>
-                    <p className="truncate text-[11px]" style={{ color: 'var(--wb-muted)' }}>
-                      下方为追问与补充输入区；需要改初始想法可打开引导页
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={openPressureGuide}
-                    className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-200 hover:bg-[var(--wb-primary-muted)]"
-                    style={{
-                      color: 'var(--wb-primary-hex, #3a4a40)',
-                      background: 'rgba(15, 23, 42, 0.05)',
-                    }}
-                  >
-                    编辑初始想法
-                  </button>
-                </div>
-              </div>
-              <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-                <LiveLab
-                  messages={messages}
-                  setMessages={setMessages}
-                  inputValue={inputValue}
-                  setInputValue={setInputValue}
-                  handleTextSelect={handleTextSelect}
-                  historyMessages={historyMessages}
-                  viewingHistorySessionId={viewingHistorySessionId}
-                  setViewingHistorySessionId={setViewingHistorySessionId}
-                  activeProjectId={activeProjectId}
-                  saveMessageToHistory={saveMessageToHistory}
-                  currentSessionId={currentSessionId}
-                  setCurrentSessionId={setCurrentSessionId}
-                  workbenchUi={wbLive}
-                  workbenchComposerRef={workbenchComposerRef}
-                />
-              </div>
-            </div>
-          )
+          </div>
         ) : (
           <>
             {labMode !== 'coach' && (

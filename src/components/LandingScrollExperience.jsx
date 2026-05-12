@@ -5,8 +5,11 @@ const BG_URL = '/backgrounds/bg-figma-sky.jpg'
 
 const INTRO_DELAY_MS = 1000
 
-/** 顶栏白底：约 60–75% 不透明度 */
-const NAV_BAR_BG = 'rgba(255, 255, 255, 0.68)'
+/** 顶栏白底：与 workbench-prd --wb-landing-nav-* 对齐 */
+const NAV_BAR_BG = 'var(--wb-landing-nav-bg, rgba(255, 255, 255, 0.68))'
+const NAV_BAR_BLUR = 'var(--wb-landing-nav-blur, 16px)'
+const NAV_BAR_BORDER = 'var(--wb-landing-nav-border-bottom, rgba(255, 255, 255, 0.45))'
+const NAV_BAR_INSET = 'var(--wb-landing-nav-inset, 0 1px 0 rgba(255, 255, 255, 0.35) inset)'
 
 /** 中部导航文字：#000000 @ 50%（无底纹） */
 const NAV_LINK_TEXT = 'rgba(0, 0, 0, 0.5)'
@@ -190,10 +193,10 @@ export default function LandingScrollExperience() {
           className="flex w-full items-stretch justify-between gap-3 px-4 py-2 md:gap-6 md:px-8 md:py-2.5"
           style={{
             background: NAV_BAR_BG,
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.45)',
-            boxShadow: '0 1px 0 rgba(255, 255, 255, 0.35) inset',
+            backdropFilter: `blur(${NAV_BAR_BLUR})`,
+            WebkitBackdropFilter: `blur(${NAV_BAR_BLUR})`,
+            borderBottom: `1px solid ${NAV_BAR_BORDER}`,
+            boxShadow: NAV_BAR_INSET,
           }}
         >
           <div className="flex shrink-0 items-center justify-center" style={{ color: 'var(--color-brand-blue, #00aaff)' }} aria-hidden>

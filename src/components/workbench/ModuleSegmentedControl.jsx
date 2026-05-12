@@ -8,16 +8,12 @@ const SEGMENTS = [
     label: '压力练习（练）',
     short: '练',
     badgeKey: 'live',
+    /** 与顶栏闪电 logo 区分：靶心式「练习焦点」图标 */
     icon: (active) => (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="shrink-0" aria-hidden>
-        <path
-          d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinejoin="round"
-          fill={active ? 'currentColor' : 'none'}
-          fillOpacity={active ? 0.12 : 0}
-        />
+        <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.65" />
+        <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="1.65" />
+        <circle cx="12" cy="12" r="1.6" fill="currentColor" fillOpacity={active ? 0.35 : 0.2} />
       </svg>
     ),
   },
@@ -72,16 +68,19 @@ function useModuleBadges() {
   }, [])
 }
 
-export default function ModuleSegmentedControl() {
+export default function ModuleSegmentedControl({ variant = 'default' }) {
   const { labMode, switchLabMode } = useLab()
   const badges = useModuleBadges()
+  const dialog = variant === 'dialog'
 
   const activeIndex = SEGMENTS.findIndex((s) => s.id === labMode)
   const thumbOn = activeIndex >= 0
 
   return (
     <div
-      className="relative inline-flex min-w-0 max-w-full items-stretch rounded-full p-1 shadow-sm backdrop-blur-sm"
+      className={`relative inline-flex min-w-0 max-w-full items-stretch rounded-full shadow-sm backdrop-blur-sm ${
+        dialog ? 'wb-module-segment--dialog p-[3px]' : 'p-1'
+      }`}
       style={{
         background: 'var(--wb-segment-track)',
         border: '1px solid rgba(255, 253, 248, 0.65)',
@@ -91,10 +90,12 @@ export default function ModuleSegmentedControl() {
       aria-label="模块切换"
     >
       <div
-        className="pointer-events-none absolute bottom-1 top-1 rounded-full transition-all duration-200 ease-out"
+        className="pointer-events-none absolute rounded-full transition-all duration-200 ease-out"
         style={{
-          width: 'calc((100% - 8px) / 3)',
-          left: 4,
+          width: dialog ? 'calc((100% - 12px) / 3)' : 'calc((100% - 8px) / 3)',
+          top: dialog ? 3 : 4,
+          bottom: dialog ? 3 : 4,
+          left: dialog ? 3 : 4,
           background: 'var(--wb-segment-thumb)',
           border: '1px solid var(--wb-segment-thumb-border)',
           transform: thumbOn ? `translateX(calc(${activeIndex} * 100%))` : 'translateX(0)',
@@ -117,9 +118,11 @@ export default function ModuleSegmentedControl() {
             role="tab"
             aria-selected={active}
             onClick={() => switchLabMode(s.id)}
-            className={`relative flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-medium transition-colors duration-200 md:px-4 md:text-sm ${
-              active ? 'wb-segment-active' : 'wb-segment-surface hover:bg-white/40'
-            }`}
+            className={`relative flex min-w-0 flex-1 cursor-pointer items-center justify-center rounded-full font-medium transition-colors duration-200 ${
+              dialog
+                ? 'gap-1 px-2 py-[5px] text-[11px] md:gap-1.5 md:px-3 md:py-1 md:text-xs'
+                : 'gap-2 px-3 py-2 text-xs md:px-4 md:text-sm'
+            } ${active ? 'wb-segment-active' : 'wb-segment-surface hover:bg-white/40'}`}
             style={
               active
                 ? { color: 'var(--color-text-primary)' }
@@ -128,8 +131,8 @@ export default function ModuleSegmentedControl() {
           >
             {showBadge && (
               <span
-                className="absolute right-2 top-2 h-2 w-2 rounded-full md:right-3"
-                style={{ background: 'color-mix(in srgb, var(--color-accent-orange) 75%, #ffffff)' }}
+                className={`absolute h-2 w-2 rounded-full ${dialog ? 'right-1.5 top-1.5' : 'right-2 top-2 md:right-3'}`}
+                style={{ background: 'color-mix(in srgb, var(--color-brand-blue) 75%, #ffffff)' }}
                 title="有待完成"
                 aria-hidden
               />
