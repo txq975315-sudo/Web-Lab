@@ -9,8 +9,8 @@ export default function WorkbenchMiddleToolColumn({ tool, onClose }) {
 
   return (
     <aside
-      className="wb-pressure-tree-column flex min-h-0 shrink-0 flex-col overflow-hidden overflow-x-hidden pb-4 pl-2 pr-2 pt-0 md:pl-3 md:pr-3 min-[900px]:pr-4"
-      style={{ flex: '0 0 clamp(11rem, 26vw, 20rem)', maxWidth: '320px' }}
+      className="wb-pressure-tree-column flex min-h-0 shrink-0 flex-col items-stretch overflow-hidden overflow-x-hidden pb-4 pl-2 pr-2 pt-0 md:pl-3 md:pr-3 min-[900px]:pr-4"
+      style={{ flex: '0 0 clamp(9.5rem, 17vw, 13.5rem)', maxWidth: '220px' }}
       {...(showTree ? { 'data-wb-workbench-project-tree': true } : {})}
     >
       {!showTree && (

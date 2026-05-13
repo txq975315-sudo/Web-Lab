@@ -10,6 +10,15 @@ import { autoGenerateOutline } from '../utils/outlineGenerator'
 import { migrateProjectTreeIfNeeded } from '../utils/projectTreeMigration'
 import { archaeologyStore, store } from '../utils/dataStore'
 import { summarizeLegacyFlat, normalizeFlatDocType } from '../utils/flatStoreMigration'
+import {
+  findNodeById,
+  collectDocuments,
+  findProjectForDoc,
+  extractAllTextForReferences,
+  updateNodeInTree,
+  addNodeToParent,
+  removeNodeFromTree,
+} from '../utils/projectTreeOps.js'
 
 const LabContext = createContext(null)
 
@@ -29,89 +38,6 @@ const MODULE_TO_CATEGORY_ID = {
 // 生成唯一ID的简单函数
 function generateId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-}
-
-// 辅助函数
-function findNodeById(tree, id) {
-  for (const node of tree) {
-    if (node.id === id) return node
-    if (node.children) {
-      const found = findNodeById(node.children, id)
-      if (found) return found
-    }
-  }
-  return null
-}
-
-function collectDocuments(tree) {
-  const docs = []
-  function walk(nodes) {
-    for (const node of nodes) {
-      if (node.type === 'document') {
-        docs.push(node)
-      }
-      if (node.children) {
-        walk(node.children)
-      }
-    }
-  }
-  walk(tree)
-  return docs
-}
-
-function findProjectForDoc(tree, docId) {
-  for (const project of tree) {
-    if (findNodeById([project], docId)) return project.id
-  }
-  return null
-}
-
-function extractAllTextForReferences(doc) {
-  const parts = []
-  if (doc.content) {
-    parts.push(typeof doc.content === 'string' ? doc.content : doc.content.text || '')
-  }
-  if (doc.fields) {
-    for (const v of Object.values(doc.fields)) {
-      if (v && typeof v === 'string') parts.push(v)
-    }
-  }
-  return parts.join('\n')
-}
-
-function updateNodeInTree(tree, id, updater) {
-  return tree.map(node => {
-    if (node.id === id) {
-      return updater(node)
-    }
-    if (node.children) {
-      return { ...node, children: updateNodeInTree(node.children, id, updater) }
-    }
-    return node
-  })
-}
-
-function addNodeToParent(tree, parentId, newNode) {
-  return tree.map(node => {
-    if (node.id === parentId) {
-      return { ...node, children: [...(node.children || []), newNode] }
-    }
-    if (node.children) {
-      return { ...node, children: addNodeToParent(node.children, parentId, newNode) }
-    }
-    return node
-  })
-}
-
-function removeNodeFromTree(tree, nodeId) {
-  return tree
-    .filter(node => node.id !== nodeId)
-    .map(node => {
-      if (node.children) {
-        return { ...node, children: removeNodeFromTree(node.children, nodeId) }
-      }
-      return node
-    })
 }
 
 // Action Types

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLab } from '../../context/LabContext'
 import { AnimatePresence, motion } from 'framer-motion'
+import { MODULE_ORDER, TEMPLATES, TEMPLATE_TYPES, createDefaultFields } from '../../config/templates'
 
 function ChevTree({ expanded }) {
   return (
@@ -122,10 +123,11 @@ function TreeRow({ node, level, selectedDocId }) {
  * 压力测试工作台中间列：项目树（无底纹，叠在 wb-shell 云底上）
  */
 export default function WorkbenchProjectTree() {
-  const { projects, activeProjectId, setActiveProject, createProject, currentProject, activeDocId } = useLab()
+  const { projects, activeProjectId, setActiveProject, createProject, createDocument, selectDocument, currentProject, activeDocId } = useLab()
   const [open, setOpen] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
+  const [showTemplates, setShowTemplates] = useState(false)
   const dropdownRef = useRef(null)
 
   const active = projects.find((p) => p.id === activeProjectId)
@@ -148,8 +150,26 @@ export default function WorkbenchProjectTree() {
     setShowCreate(false)
   }
 
+  const handleTemplateSelect = (templateType) => {
+    const parentId = currentProject?.children?.[0]?.id
+    if (!parentId) {
+      alert('没有可用的分类来创建文档')
+      return
+    }
+    const template = TEMPLATE_TYPES[templateType]
+    if (!template) return
+    const docId = createDocument(parentId, {
+      name: template.label,
+      docType: templateType,
+      typeKey: templateType,
+      fields: createDefaultFields(templateType),
+    })
+    selectDocument(docId)
+    setShowTemplates(false)
+  }
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col items-stretch">
       <p className="mb-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--wb-muted)' }}>
         项目树
       </p>
@@ -157,7 +177,7 @@ export default function WorkbenchProjectTree() {
       <button
         type="button"
         onClick={() => setShowCreate((v) => !v)}
-        className="mb-2 w-full rounded-full px-3 py-2.5 text-xs font-semibold transition-opacity hover:opacity-95"
+        className="mb-2 self-start whitespace-nowrap rounded-full px-3 py-2.5 text-xs font-semibold transition-opacity hover:opacity-95"
         style={{
           background: 'color-mix(in srgb, var(--color-accent-orange) 88%, #0f172a)',
           color: 'var(--color-text-inverted)',
@@ -168,7 +188,11 @@ export default function WorkbenchProjectTree() {
       </button>
 
       {showCreate && (
-        <form onSubmit={handleCreate} className="mb-3 rounded-xl p-2" style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(20,20,19,0.08)' }}>
+        <form
+          onSubmit={handleCreate}
+          className="mb-3 max-w-full self-stretch rounded-xl p-2"
+          style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(20,20,19,0.08)' }}
+        >
           <input
             value={nameDraft}
             onChange={(e) => setNameDraft(e.target.value)}
@@ -199,11 +223,11 @@ export default function WorkbenchProjectTree() {
         </form>
       )}
 
-      <div className="relative mb-3" ref={dropdownRef}>
+      <div className="relative mb-3 min-w-0 max-w-full self-stretch" ref={dropdownRef}>
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-[rgba(255,255,255,0.4)]"
+          className="flex w-full min-w-0 max-w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-[rgba(255,255,255,0.4)]"
           style={{
             background: 'rgba(255, 255, 255, 0.55)',
             border: '1px solid rgba(20, 20, 19, 0.08)',
@@ -250,20 +274,115 @@ export default function WorkbenchProjectTree() {
         </AnimatePresence>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
-        {currentProject?.children?.map((cat, i) => (
-          <TreeRow
-            key={cat?.id != null ? String(cat.id) : `cat-${i}`}
-            node={cat}
-            level={0}
-            selectedDocId={activeDocId}
-          />
-        ))}
-        {!currentProject?.children?.length && (
-          <p className="py-6 text-center text-xs" style={{ color: 'var(--wb-muted)' }}>
-            暂无分类节点
-          </p>
-        )}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
+          {currentProject?.children?.map((cat, i) => (
+            <TreeRow
+              key={cat?.id != null ? String(cat.id) : `cat-${i}`}
+              node={cat}
+              level={0}
+              selectedDocId={activeDocId}
+            />
+          ))}
+          {!currentProject?.children?.length && (
+            <p className="py-6 text-center text-xs" style={{ color: 'var(--wb-muted)' }}>
+              暂无分类节点
+            </p>
+          )}
+        </div>
+
+        <div
+          className="mt-2 shrink-0 border-t pt-2"
+          style={{ borderColor: 'rgba(20, 20, 19, 0.1)' }}
+        >
+          <button
+            type="button"
+            onClick={() => setShowTemplates((v) => !v)}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-left text-xs font-semibold transition-colors hover:bg-[rgba(255,255,255,0.45)]"
+            style={{
+              background: 'rgba(255, 255, 255, 0.42)',
+              border: '1px solid rgba(20, 20, 19, 0.1)',
+              color: 'var(--wb-text)',
+              boxShadow: '0 1px 4px rgba(20, 20, 19, 0.05)',
+            }}
+            aria-expanded={showTemplates}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden className="shrink-0 opacity-80">
+              <path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="min-w-0 leading-snug">查看并创建模板</span>
+          </button>
+
+          <AnimatePresence initial={false}>
+            {showTemplates && (
+              <motion.div
+                key="wb-template-panel"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div
+                  className="mt-2 max-h-[min(50vh,14rem)] overflow-y-auto rounded-xl p-2"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.88)',
+                    border: '1px solid rgba(20, 20, 19, 0.1)',
+                    boxShadow: '0 4px 14px rgba(20, 20, 19, 0.08)',
+                  }}
+                >
+                  <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--wb-muted)' }}>
+                      选择模板
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowTemplates(false)}
+                      className="rounded-md p-0.5 transition-colors hover:bg-[rgba(20,20,19,0.06)]"
+                      style={{ color: 'var(--wb-muted)' }}
+                      aria-label="关闭模板列表"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {MODULE_ORDER.map((moduleName) => {
+                      const entries = Object.entries(TEMPLATES).filter(([, tmpl]) => tmpl.module === moduleName)
+                      if (entries.length === 0) return null
+                      const shortTitle = moduleName.replace(/^\d+\s+/, '')
+                      return (
+                        <div key={moduleName}>
+                          <p className="mb-1 px-0.5 text-[10px] font-medium" style={{ color: 'var(--wb-muted)' }}>
+                            {shortTitle}
+                          </p>
+                          <div className="flex flex-col gap-0.5">
+                            {entries.map(([key, tmpl]) => (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() => handleTemplateSelect(key)}
+                                className="flex w-full items-center gap-1.5 rounded-lg px-1.5 py-1.5 text-left text-[11px] transition-colors hover:bg-[rgba(0,170,255,0.1)]"
+                                style={{ color: 'var(--wb-text)' }}
+                                title={tmpl.label}
+                              >
+                                <span className="shrink-0 text-[13px] leading-none" aria-hidden>
+                                  {tmpl.icon}
+                                </span>
+                                <span className="min-w-0 flex-1 truncate leading-snug">{tmpl.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   )

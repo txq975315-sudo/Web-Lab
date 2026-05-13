@@ -55,6 +55,18 @@
 
 ---
 
+## 4.6 压力测试引擎（模块边界）
+
+| 约定 | 说明 |
+|------|------|
+| **代码根目录** | **`src/features/pressureTest/`** — 压力测试工作台 UI 与后续会话引擎、状态机实现均归此目录（或由其再拆子目录）。 |
+| **薄适配** | `src/components/workbench/PressureTestWorkbench.jsx` 可为对 feature 的 **re-export**，便于旧路径兼容；新代码优先 `import … from '../features/pressureTest'`。 |
+| **Prompt 占位** | 模板与版本号草案放在 **`src/config/pressureTestPrompts.js`**，与 `buildLiveLabSystemPrompt` 等现有调用解耦后再逐步接线。 |
+| **本地键** | 追问深度等仍使用现有 **`thinking-lab-pressure-depth`** 等键；若新增键，须同步 **`storageKeys.js`**、**`labDataSync.js`** 与本节。 |
+| **与项目树** | 会话与文档归档策略以 PRD 为准；**当前**工作台演练消息仍走 Live Lab 与 `LabContext` 项目绑定，不在本节重复实现。 |
+
+---
+
 ## 5. 全站备份 / 导入
 
 - **导出/导入** 由 `src/utils/labDataSync.js` 对 **`LAB_LOCAL_STORAGE_KEYS`** 做快照；导入时若条目使用旧版键名，会经 **`LEGACY_IMPORT_ALIASES`** 映射到当前键。  
@@ -75,4 +87,4 @@
 
 ---
 
-*最后更新：统一 `thinking-lab-*` 键名与旧键迁移；后续迭代请随 PR 更新本文。*
+*最后更新：4.6 压力测试模块边界；`thinking-lab-*` 键名与旧键迁移。后续迭代请随 PR 更新本文。*
