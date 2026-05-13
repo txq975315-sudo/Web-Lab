@@ -10,6 +10,7 @@ import GrowthCoachPanel from './growthCoach/GrowthCoachPanel'
 import { LAB_BACKGROUND_IMAGES, getLabBackgroundIndex } from '../config/labBackgrounds'
 import PressureTestWorkbench from '../features/pressureTest'
 import PressureSessionRunner from '../features/pressureTest/PressureSessionRunner.jsx'
+import PressureSessionInlineViewer from '../features/pressureTest/PressureSessionInlineViewer.jsx'
 import { createPressureSession } from '../features/pressureTest/pressureSessionStore.js'
 import WorkbenchMiddleToolColumn from './workbench/WorkbenchMiddleToolColumn'
 import ModuleSegmentedControl from './workbench/ModuleSegmentedControl'
@@ -300,11 +301,13 @@ export default function LabPanel({
     currentSessionId,
     setCurrentSessionId,
     setPressureWorkbenchActiveSessionId,
-    consumePressureResumeSessionId,
+    consumePressureSessionResume,
   } = useLab()
+  const isPressureWorkbenchLive = workbenchLayout && hideTopTabs && labMode === 'live'
   const [inputValue, setInputValue] = useState('')
   const [stressDraft, setStressDraft] = useState('')
   const [pressureRunnerSessionId, setPressureRunnerSessionId] = useState(/** @type {string|null} */ (null))
+  const [pressureViewSessionId, setPressureViewSessionId] = useState(/** @type {string|null} */ (null))
   const [messages, setMessages] = useState(() => LIVE_LAB_DEFAULT_SEED_MESSAGES.map((m) => ({ ...m })))
   const [selectionMenu, setSelectionMenu] = useState(null)
   const workbenchComposerRef = useRef(null)
@@ -320,6 +323,52 @@ export default function LabPanel({
     }
   })
   const wbDocDragRef = useRef({ active: false, startX: 0, startW: 0, lastW: 300 })
+
+  const WB_INLINE_PRESSURE_W_KEY = 'thinking-lab-wb-inline-pressure-view-width-v1'
+  const [wbInlinePressureViewWidth, setWbInlinePressureViewWidth] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem(WB_INLINE_PRESSURE_W_KEY)
+      const n = raw != null ? Number(raw) : NaN
+      return Number.isFinite(n) ? Math.min(560, Math.max(220, n)) : 300
+    } catch {
+      return 300
+    }
+  })
+  const wbPressureDragRef = useRef({ active: false, startX: 0, startW: 0, lastW: 300 })
+
+  const onWbPressureViewResizePointerDown = useCallback(
+    (e) => {
+      if (e.button !== 0) return
+      e.preventDefault()
+      wbPressureDragRef.current = {
+        active: true,
+        startX: e.clientX,
+        startW: wbInlinePressureViewWidth,
+        lastW: wbInlinePressureViewWidth,
+      }
+      const onMove = (ev) => {
+        const d = wbPressureDragRef.current
+        if (!d.active) return
+        const dx = ev.clientX - d.startX
+        const next = Math.min(560, Math.max(220, d.startW + dx))
+        d.lastW = next
+        setWbInlinePressureViewWidth(next)
+      }
+      const onUp = () => {
+        wbPressureDragRef.current.active = false
+        document.removeEventListener('mousemove', onMove)
+        document.removeEventListener('mouseup', onUp)
+        try {
+          sessionStorage.setItem(WB_INLINE_PRESSURE_W_KEY, String(wbPressureDragRef.current.lastW))
+        } catch {
+          /* ignore */
+        }
+      }
+      document.addEventListener('mousemove', onMove)
+      document.addEventListener('mouseup', onUp)
+    },
+    [wbInlinePressureViewWidth]
+  )
 
   const onWbDocResizePointerDown = useCallback(
     (e) => {
@@ -360,18 +409,30 @@ export default function LabPanel({
     : []
 
   useEffect(() => {
-    if (!workbenchLayout || labMode !== 'live') return
-    const pending = consumePressureResumeSessionId()
-    if (pending) setPressureRunnerSessionId(pending)
-  }, [workbenchLayout, labMode, consumePressureResumeSessionId])
+    if (!isPressureWorkbenchLive) return
+    const pending = consumePressureSessionResume()
+    if (!pending) return
+    if (pending.mode === 'view') {
+      setPressureViewSessionId(pending.sessionId)
+      return
+    }
+    setPressureViewSessionId(null)
+    setPressureRunnerSessionId(pending.sessionId)
+  }, [isPressureWorkbenchLive, consumePressureSessionResume])
 
   useEffect(() => {
     if (workbenchLayout && labMode === 'live') {
-      setPressureWorkbenchActiveSessionId(pressureRunnerSessionId)
+      setPressureWorkbenchActiveSessionId(pressureRunnerSessionId || pressureViewSessionId)
     } else {
       setPressureWorkbenchActiveSessionId(null)
     }
-  }, [workbenchLayout, labMode, pressureRunnerSessionId, setPressureWorkbenchActiveSessionId])
+  }, [
+    workbenchLayout,
+    labMode,
+    pressureRunnerSessionId,
+    pressureViewSessionId,
+    setPressureWorkbenchActiveSessionId,
+  ])
 
   /** 从持久化恢复当前会话消息（刷新/切项目后不再只剩演示三句）。勿依赖 allHistoryMessages 引用频繁重跑，以免打断流式输出。 */
   useEffect(() => {
@@ -446,7 +507,7 @@ export default function LabPanel({
     }
   }, [labMessageToSend, autoSendLabMessage])
 
-  const wbLive = workbenchLayout && hideTopTabs && labMode === 'live'
+  const wbLive = isPressureWorkbenchLive
   /** 工作台「学」：与「练」一致使用 mint 底，不使用全屏装饰背景图 */
   const coachWorkbenchSurface = flushChrome && hideTopTabs && labMode === 'coach'
 
@@ -530,10 +591,15 @@ export default function LabPanel({
                 tool={workbenchRailTool}
                 onClose={onWorkbenchRailToolClose || (() => {})}
                 pressureHistory={{
-                  activeRunnerId: pressureRunnerSessionId,
-                  onContinue: (id) => setPressureRunnerSessionId(id),
+                  activeRunnerId: pressureRunnerSessionId || pressureViewSessionId,
+                  onView: (id) => setPressureViewSessionId(id),
+                  onContinue: (id) => {
+                    setPressureViewSessionId(null)
+                    setPressureRunnerSessionId(id)
+                  },
                   onAfterDelete: (id) => {
                     if (id === pressureRunnerSessionId) setPressureRunnerSessionId(null)
+                    if (id === pressureViewSessionId) setPressureViewSessionId(null)
                   },
                 }}
               />
@@ -566,10 +632,45 @@ export default function LabPanel({
               </>
             )}
 
+            {pressureViewSessionId && (
+              <>
+                <div
+                  className="wb-live-pressure-view-inline flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg bg-transparent"
+                  style={{
+                    flex: '1 1 auto',
+                    minWidth: wbInlinePressureViewWidth,
+                    maxWidth: 560,
+                    border: '1px solid rgba(15, 23, 42, 0.09)',
+                  }}
+                >
+                  <PressureSessionInlineViewer
+                    sessionId={pressureViewSessionId}
+                    onClose={() => setPressureViewSessionId(null)}
+                    onEnterPractice={(id) => {
+                      setPressureViewSessionId(null)
+                      setPressureRunnerSessionId(id)
+                    }}
+                  />
+                </div>
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="拖动调整压力练习查看区宽度"
+                  onMouseDown={onWbPressureViewResizePointerDown}
+                  className="wb-live-pressure-view-separator group relative w-2 shrink-0 cursor-col-resize select-none touch-none"
+                >
+                  <div
+                    className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-[rgba(15,23,42,0.12)] transition-colors group-hover:bg-[var(--color-accent-orange)]"
+                    aria-hidden
+                  />
+                </div>
+              </>
+            )}
+
             <div
               className="wb-pressure-main-column flex min-h-0 min-w-0 flex-col pb-3 pl-1 pr-3 pt-0 md:pb-4 md:pl-2 md:pr-5"
               style={
-                activeDocId
+                activeDocId || pressureViewSessionId
                   ? { flex: '0 1 min(65%, 56rem)', minWidth: 0 }
                   : { flex: '1 1 65%', minWidth: 0 }
               }
@@ -601,6 +702,7 @@ export default function LabPanel({
                           if (!stressDraft.trim()) return
                           onPressureTestStart?.()
                           const id = createPressureSession(stressDraft.trim())
+                          setPressureViewSessionId(null)
                           setPressureRunnerSessionId(id)
                           setStressDraft('')
                         }}

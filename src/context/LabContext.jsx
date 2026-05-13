@@ -449,8 +449,8 @@ export function LabProvider({ children }) {
   const [previousProjectId, setPreviousProjectId] = useState(null)
   /** 进入压力工作台前的项目 id；在台内未手动选项目时，离开 live 后恢复 */
   const pressureLiveStashedProjectRef = useRef(/** @type {string|null} */ (null))
-  /** 从「历史压力练习」等处继续会话：切到 live 后由 LabPanel 消费 */
-  const pressureResumeSessionRef = useRef(/** @type {string|null} */ (null))
+  /** 从「历史压力练习」打开会话：切到 live 后由 LabPanel 消费 { sessionId, mode } */
+  const pressureResumePayloadRef = useRef(/** @type {{ sessionId: string, mode: 'view' | 'practice' } | null} */ (null))
   const [pressureWorkbenchActiveSessionId, setPressureWorkbenchActiveSessionId] = useState(/** @type {string|null} */ (null))
   const [viewingHistorySessionId, setViewingHistorySessionId] = useState(null)
   const [documentConflicts, setDocumentConflicts] = useState({})
@@ -984,16 +984,24 @@ export function LabProvider({ children }) {
 
   const continuePressureSession = useCallback(
     (sessionId) => {
-      pressureResumeSessionRef.current = sessionId
+      pressureResumePayloadRef.current = { sessionId, mode: 'practice' }
       switchLabMode('live')
     },
     [switchLabMode]
   )
 
-  const consumePressureResumeSessionId = useCallback(() => {
-    const id = pressureResumeSessionRef.current
-    pressureResumeSessionRef.current = null
-    return id
+  const viewPressureSession = useCallback(
+    (sessionId) => {
+      pressureResumePayloadRef.current = { sessionId, mode: 'view' }
+      switchLabMode('live')
+    },
+    [switchLabMode]
+  )
+
+  const consumePressureSessionResume = useCallback(() => {
+    const p = pressureResumePayloadRef.current
+    pressureResumePayloadRef.current = null
+    return p
   }, [])
 
   // 向后兼容：添加缺失的方法作为空实现
@@ -1220,7 +1228,8 @@ export function LabProvider({ children }) {
     auditFullProject,
     switchLabMode,
     continuePressureSession,
-    consumePressureResumeSessionId,
+    viewPressureSession,
+    consumePressureSessionResume,
     pressureWorkbenchActiveSessionId,
     setPressureWorkbenchActiveSessionId,
     setActiveHeadingId,

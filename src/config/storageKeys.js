@@ -25,5 +25,7 @@ export const STORAGE_KEYS = Object.freeze({
   ARCHAELOGY: 'thinking-lab-archaeology',
   GROWTH_SKILL_PROGRESS: 'thinking-lab-growth-skill-progress',
   /** 压力测试引擎：结构化会话（9 问 + 拆解 + 盲区快照） */
-  PRESSURE_ENGINE_SESSIONS: 'thinking-lab-pressure-engine-sessions'
+  PRESSURE_ENGINE_SESSIONS: 'thinking-lab-pressure-engine-sessions',
+  /** 压力引擎 Layer1/Layer2 抽检与运维日志（环形 JSON 数组，见 pressureEvalLog.js） */
+  PRESSURE_ENGINE_EVAL_LOG: 'thinking-lab-pressure-engine-eval-log'
 })

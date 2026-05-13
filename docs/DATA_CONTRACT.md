@@ -63,7 +63,8 @@
 | **代码根目录** | **`src/features/pressureTest/`** — 压力测试工作台 UI 与后续会话引擎、状态机实现均归此目录（或由其再拆子目录）。 |
 | **薄适配** | `src/components/workbench/PressureTestWorkbench.jsx` 可为对 feature 的 **re-export**，便于旧路径兼容；新代码优先 `import … from '../features/pressureTest'`。 |
 | **Prompt 占位** | 模板与版本号草案放在 **`src/config/pressureTestPrompts.js`**，与 `buildLiveLabSystemPrompt` 等现有调用解耦后再逐步接线。 |
-| **本地键** | 追问深度等仍使用现有 **`thinking-lab-pressure-depth`** 等键；**结构化压力会话列表** 使用 **`thinking-lab-pressure-engine-sessions`**（`STORAGE_KEYS.PRESSURE_ENGINE_SESSIONS`）。新增键须同步 **`storageKeys.js`**、**`labDataSync.js`** 与本节。 |
+| **本地键** | 追问深度等仍使用现有 **`thinking-lab-pressure-depth`** 等键；**结构化压力会话列表** 使用 **`thinking-lab-pressure-engine-sessions`**（`STORAGE_KEYS.PRESSURE_ENGINE_SESSIONS`）；**Layer1/Layer2 抽检与运维日志**（环形 JSON）使用 **`thinking-lab-pressure-engine-eval-log`**（`STORAGE_KEYS.PRESSURE_ENGINE_EVAL_LOG`），实现见 **`src/features/pressureTest/pressureEvalLog.js`**。新增键须同步 **`storageKeys.js`**、**`labDataSync.js`** 与本节。 |
+| **Prompt 版本** | 会话对象可含 **`promptsVersion`**（创建时写入）；人读变更记录见 **`src/config/pressureTestPrompts.js`** 内 **`PRESSURE_PROMPT_CHANGELOG`** / **`PRESSURE_TEST_PROMPTS_VERSION`**。 |
 | **与项目树** | 会话与文档归档策略以 PRD 为准；**当前**工作台演练消息仍走 Live Lab 与 `LabContext` 项目绑定，不在本节重复实现。 |
 
 ---
@@ -88,4 +89,4 @@
 
 ---
 
-*最后更新：4.6 压力测试模块边界；`thinking-lab-*` 键名与旧键迁移。后续迭代请随 PR 更新本文。*
+*最后更新：4.6 压力测试模块边界（含评测日志键、promptsVersion）；`thinking-lab-*` 键名与旧键迁移。后续迭代请随 PR 更新本文。*

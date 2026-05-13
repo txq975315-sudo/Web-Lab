@@ -91,6 +91,7 @@ export const WORKBENCH_MIDDLE_TOOL_TITLES = {
 /**
  * @param {object} props
  * @param {string|null} [props.pressureHistory.activeRunnerId]
+ * @param {(id: string) => void} [props.pressureHistory.onView]
  * @param {(id: string) => void} [props.pressureHistory.onContinue]
  * @param {(id: string) => void} [props.pressureHistory.onAfterDelete]
  */
@@ -112,6 +113,7 @@ export function WorkbenchToolPaneContent({ tool, transparent = true, pressureHis
       <PressureSessionHistoryPanel
         transparent={transparent}
         activeRunnerId={pressureHistory?.activeRunnerId ?? null}
+        onView={pressureHistory?.onView}
         onContinue={pressureHistory?.onContinue}
         onAfterDelete={pressureHistory?.onAfterDelete}
       />

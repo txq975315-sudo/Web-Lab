@@ -42,19 +42,22 @@ function daySectionLabel(key) {
 /**
  * @param {object} props
  * @param {string|null} [props.activeRunnerId] 覆盖上下文中的高亮会话（工作台主列内继续时）
- * @param {(id: string) => void} [props.onContinue] 覆盖默认「切到压力练并打开」
+ * @param {(id: string) => void} [props.onView] 仅查看历史（不发起拆解/提交）
+ * @param {(id: string) => void} [props.onContinue] 进入练习（拆解、作答、报告操作）
  * @param {(id: string) => void} [props.onAfterDelete]
  * @param {boolean} [props.transparent]
  */
 export default function PressureSessionHistoryPanel({
   activeRunnerId: activeOverride,
+  onView: onViewOverride,
   onContinue: onContinueOverride,
   onAfterDelete,
   transparent = true,
 }) {
-  const { continuePressureSession, pressureWorkbenchActiveSessionId } = useLab()
+  const { continuePressureSession, viewPressureSession, pressureWorkbenchActiveSessionId } = useLab()
   const activeRunnerId = activeOverride ?? pressureWorkbenchActiveSessionId ?? null
-  const handleContinue = onContinueOverride ?? continuePressureSession
+  const handleView = onViewOverride ?? viewPressureSession
+  const handlePractice = onContinueOverride ?? continuePressureSession
 
   const [rows, setRows] = useState(() => listPressureSessions())
   const [openByDay, setOpenByDay] = useState(() => (/** @type {Record<string, boolean>} */ ({})))
@@ -142,6 +145,13 @@ export default function PressureSessionHistoryPanel({
       >
         已保存 · 按日期
       </p>
+      <p
+        className="mb-2 px-2 text-[10px] leading-relaxed"
+        style={{ color: 'var(--wb-muted)', textShadow: transparent ? '0 1px 1px rgba(255,255,255,0.55)' : undefined }}
+      >
+        「查看」在中间区域<strong className="font-medium"> 旁展开 </strong>
+        侧栏浏览记录（与内联文档同思路）；「练习」在主区拆解与作答。
+      </p>
       <ul className="space-y-1">
         {groups.map(([dayKey, sessions]) => (
           <li key={dayKey} className="rounded-lg">
@@ -199,9 +209,17 @@ export default function PressureSessionHistoryPanel({
                           type="button"
                           className="rounded-md px-2 py-1 text-[11px] font-medium hover:bg-[rgba(15,23,42,0.08)]"
                           style={{ color: 'var(--wb-text)' }}
-                          onClick={() => handleContinue(s.id)}
+                          onClick={() => handleView(s.id)}
                         >
-                          {s.status === 'completed' ? '查看报告' : '继续'}
+                          查看
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-md px-2 py-1 text-[11px] font-medium hover:bg-[rgba(15,23,42,0.08)]"
+                          style={{ color: 'var(--wb-text)' }}
+                          onClick={() => handlePractice(s.id)}
+                        >
+                          练习
                         </button>
                         <button
                           type="button"

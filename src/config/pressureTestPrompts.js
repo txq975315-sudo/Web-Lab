@@ -3,7 +3,24 @@
  * @see docs/DATA_CONTRACT.md §4.6
  */
 
-export const PRESSURE_TEST_PROMPTS_VERSION = '1.0.0-mvp'
+/** 与 `PRESSURE_PROMPT_CHANGELOG` 最新条一致；会话落库 `promptsVersion` 便于评测追溯 */
+export const PRESSURE_TEST_PROMPTS_VERSION = '1.0.1-mvp'
+
+/**
+ * Prompt 版本变更（运维/回归对照用；不替代 Git 历史）
+ * @type {readonly { version: string, date: string, summary: string }[]}
+ */
+export const PRESSURE_PROMPT_CHANGELOG = Object.freeze([
+  {
+    version: '1.0.1-mvp',
+    date: '2026-05-13',
+    summary: '阶段6：评测日志键、Layer2 抽检占位、回归用例；SessionStatus 收敛为 MVP 三态',
+  },
+  { version: '1.0.0-mvp', date: '2026-05', summary: '初始 MVP：系统角色、拆解、链式追问尾部、增量更新、盲区报告 user 模板' },
+])
+
+/** Layer2 异步抽检抽样率（仅写日志占位，不阻塞用户；测试环境见 pressureEvalLog） */
+export const PRESSURE_LAYER2_SAMPLE_RATE = 0.1
 
 export const PRESSURE_TEST_DEPTH_STORAGE_KEY = 'thinking-lab-pressure-depth'
 

@@ -1,4 +1,5 @@
 import { STORAGE_KEYS } from '../../config/storageKeys.js'
+import { PRESSURE_TEST_PROMPTS_VERSION } from '../../config/pressureTestPrompts.js'
 import { createEmptyRounds, getDefaultDeconstruction, validateDeconstruction } from './pressureTypes.js'
 
 const BUCKET_VERSION = 1
@@ -49,6 +50,7 @@ export function createPressureSession(idea) {
     blindSpotMarkers: [],
     blindSpotReport: null,
     status: 'deconstructing',
+    promptsVersion: PRESSURE_TEST_PROMPTS_VERSION,
   }
   const bucket = readBucket()
   bucket.items.unshift(session)

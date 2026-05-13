@@ -3,6 +3,7 @@ import { STORAGE_KEYS } from '../../config/storageKeys.js'
 import { getPressureSession } from './pressureSessionStore.js'
 import { findAwaitingAnswerSlot } from './pressureTypes.js'
 import { bootstrapPressureSession, submitPressureAnswer } from './pressureApi.js'
+import { PracticeRecordSection } from './PressureSessionPracticeRecord.jsx'
 
 /**
  * @param {import('./pressureTypes.js').PressureSession|null|undefined} session
@@ -17,6 +18,7 @@ function shouldConfirmBeforeExit(session) {
  * @param {object} props
  * @param {string} props.sessionId
  * @param {() => void} props.onExit
+ * @param {() => void} [props.onRestart]
  * @param {() => void} [props.onOpenGrowthCoach]
  */
 export default function PressureSessionRunner({ sessionId, onExit, onRestart, onOpenGrowthCoach }) {
@@ -185,6 +187,8 @@ export default function PressureSessionRunner({ sessionId, onExit, onRestart, on
           </button>
         </div>
 
+        <PracticeRecordSection session={session} />
+
         <div
           className="rounded-xl border px-4 py-3 text-sm"
           style={{
@@ -309,7 +313,8 @@ export default function PressureSessionRunner({ sessionId, onExit, onRestart, on
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-6">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 md:px-6">
+        <PracticeRecordSection session={session} />
         {busy && session?.status === 'deconstructing' ? (
           <p className="text-sm" style={{ color: 'var(--wb-muted)' }}>
             正在拆解 idea 并生成首轮追问…

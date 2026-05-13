@@ -3,7 +3,10 @@
  * @see docs/DATA_CONTRACT.md §4.6
  */
 
-/** @typedef {'idle'|'deconstructing'|'questioning'|'round_transition'|'completed'} SessionStatus */
+/**
+ * MVP 实际运行三态。完整 PRD 中的 idle、round_transition 等可在壳外扩展后再纳入类型。
+ * @typedef {'deconstructing'|'questioning'|'completed'} SessionStatus
+ */
 
 /** @typedef {'mild'|'direct'|'pressure'} ToneLevel */
 
@@ -68,6 +71,7 @@
  * @property {BlindSpotMarker[]} blindSpotMarkers
  * @property {BlindSpotReport|null} blindSpotReport
  * @property {SessionStatus} status
+ * @property {string} [promptsVersion] 创建会话时 Prompt 包版本（评测与回归对照）
  */
 
 const SEVERITY_RANK = { low: 1, medium: 2, high: 3 }

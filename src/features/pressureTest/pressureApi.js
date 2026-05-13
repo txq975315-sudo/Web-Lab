@@ -22,6 +22,7 @@ import {
   templateFallbackQuestion,
 } from './pressureQuestionQC.js'
 import { augmentSystemPromptWithTerminology } from '../../utils/aiTerminologyPreference.js'
+import { appendPressureEvalRecord, maybeAppendLayer2SampleRecord } from './pressureEvalLog.js'
 
 function pressureSystemPrompt() {
   return augmentSystemPromptWithTerminology(PRESSURE_SYSTEM_PROMPT)
@@ -297,7 +298,11 @@ export async function generateQuestionForSlot(sessionId, roundIdx, qIdx) {
       : { passed: false, failedChecks: ['parse'] }
   }
 
+  const strictLayer1Passed = qc.passed && !!payload
+  let usedTemplateFallback = false
+
   if (!qc.passed || !payload) {
+    usedTemplateFallback = true
     const keywordSource = userLast || session.originalIdea
     const fallback = templateFallbackQuestion(roundIdx + 1, keywordSource)
     payload = { question: fallback, blindSpotMarker: null }
@@ -309,6 +314,17 @@ export async function generateQuestionForSlot(sessionId, roundIdx, qIdx) {
     session.blindSpotMarkers = accumulateBlindSpotMarkers(session.blindSpotMarkers, payload.blindSpotMarker)
   }
   savePressureSession(session)
+
+  appendPressureEvalRecord({
+    type: 'layer1_qc',
+    sessionId,
+    roundIdx,
+    qIdx,
+    strictLayer1Passed,
+    failedChecks: [...qc.failedChecks],
+    usedTemplateFallback,
+  })
+  maybeAppendLayer2SampleRecord({ sessionId, roundIdx, qIdx })
 }
 
 /**
@@ -331,6 +347,7 @@ export async function runBlindSpotReport(sessionId) {
 
   let report = extractJsonObject(raw)
   const codeVerdict = getVerdictFromMarkers(session.blindSpotMarkers)
+  const reportFromModel = !!(report && typeof report === 'object')
 
   if (!report || typeof report !== 'object') {
     report = {
@@ -357,6 +374,13 @@ export async function runBlindSpotReport(sessionId) {
   session.blindSpotReport = /** @type {import('./pressureTypes.js').BlindSpotReport} */ (report)
   session.status = 'completed'
   savePressureSession(session)
+
+  appendPressureEvalRecord({
+    type: 'blind_spot_report',
+    sessionId,
+    reportFromModel,
+    verdict: session.blindSpotReport.verdict,
+  })
 }
 
 /**
