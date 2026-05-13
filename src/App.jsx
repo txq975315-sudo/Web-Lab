@@ -24,6 +24,7 @@ function AppContent() {
     projects,
     activeArchaeologyId,
     archaeologySessions,
+    pressureWorkbenchActiveSessionId,
   } = useLab()
 
   const [showSettings, setShowSettings] = useState(false)
@@ -140,8 +141,11 @@ function AppContent() {
     return <DashboardHome />
   }
 
+  /** 压力会话进行中：收起右侧 Insight，仅保留主对话区与左侧图标栏 */
+  const pressureSessionFocus = liveWorkbenchSurface && Boolean(pressureWorkbenchActiveSessionId)
+
   /** 非压力练全屏工作台或右栏展开时显示右侧 Insight；压力练下可由「智能推荐」收起 */
-  const showRightInsightDeck = !liveWorkbenchSurface || rightInsightDeckOpen
+  const showRightInsightDeck = (!liveWorkbenchSurface || rightInsightDeckOpen) && !pressureSessionFocus
 
   return (
     <div className="wb-shell flex h-screen flex-col overflow-hidden font-sans">
@@ -241,7 +245,7 @@ function AppContent() {
         <div
           className={`wb-workbench-row flex min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent px-4 ${
             liveWorkbenchSurface ? 'wb-workbench-row--live' : ''
-          }`}
+          } ${pressureSessionFocus ? 'wb-pressure-session-active' : ''}`}
         >
           <main
             className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${

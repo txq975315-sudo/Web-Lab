@@ -4,7 +4,10 @@ import { WORKBENCH_MIDDLE_TOOL_TITLES, WorkbenchToolPaneContent } from './workbe
 /**
  * 压力工作台中间单列：项目树与其它工具互斥，同一区块切换内容（不叠 card）
  */
-export default function WorkbenchMiddleToolColumn({ tool, onClose }) {
+/**
+ * @param {object} [props.pressureHistory] 历史压力练习回调（仅 live 工作台传入）
+ */
+export default function WorkbenchMiddleToolColumn({ tool, onClose, pressureHistory = null }) {
   const showTree = !tool || tool === 'projects'
 
   return (
@@ -36,7 +39,11 @@ export default function WorkbenchMiddleToolColumn({ tool, onClose }) {
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-        {showTree ? <WorkbenchProjectTree /> : <WorkbenchToolPaneContent tool={tool} transparent />}
+        {showTree ? (
+          <WorkbenchProjectTree />
+        ) : (
+          <WorkbenchToolPaneContent tool={tool} transparent pressureHistory={pressureHistory} />
+        )}
       </div>
     </aside>
   )

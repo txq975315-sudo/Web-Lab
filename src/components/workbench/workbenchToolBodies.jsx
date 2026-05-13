@@ -1,6 +1,7 @@
 import { loadSkillProgress } from '../../utils/growthCoachStore'
 import { METHODOLOGY_ORDER, METHODOLOGY_CONFIG } from '../../config/methodology'
 import { archaeologyStore } from '../../utils/dataStore'
+import PressureSessionHistoryPanel from '../../features/pressureTest/PressureSessionHistoryPanel.jsx'
 
 export function RadarPanelBody({ transparent }) {
   const skill = loadSkillProgress()
@@ -87,7 +88,13 @@ export const WORKBENCH_MIDDLE_TOOL_TITLES = {
   learning: '历史成长教学',
 }
 
-export function WorkbenchToolPaneContent({ tool, transparent = true }) {
+/**
+ * @param {object} props
+ * @param {string|null} [props.pressureHistory.activeRunnerId]
+ * @param {(id: string) => void} [props.pressureHistory.onContinue]
+ * @param {(id: string) => void} [props.pressureHistory.onAfterDelete]
+ */
+export function WorkbenchToolPaneContent({ tool, transparent = true, pressureHistory = null }) {
   if (!tool || tool === 'projects') return null
 
   if (tool === 'radar') return <RadarPanelBody transparent={transparent} />
@@ -102,9 +109,11 @@ export function WorkbenchToolPaneContent({ tool, transparent = true }) {
   }
   if (tool === 'practice') {
     return (
-      <PlaceholderBody
+      <PressureSessionHistoryPanel
         transparent={transparent}
-        text="演练会话历史将汇总于此（与右侧 LiveLab 历史互通后续接入）。"
+        activeRunnerId={pressureHistory?.activeRunnerId ?? null}
+        onContinue={pressureHistory?.onContinue}
+        onAfterDelete={pressureHistory?.onAfterDelete}
       />
     )
   }

@@ -503,3 +503,43 @@
 .live-lab-assistant-md strong {
   font-weight: 600;
 }
+
+/**
+ * 压力会话进行中：收起中间项目/历史列、内联文档与分隔条，主列占满；
+ * 不替换背景 —— 仍透过 wb-shell / 主列透明底看到原有云图与磨砂对话框。
+ */
+.wb-workbench-row--live.wb-pressure-session-active .wb-pressure-tree-column {
+  display: none;
+}
+
+.wb-workbench-row--live.wb-pressure-session-active .wb-live-archive-inline,
+.wb-workbench-row--live.wb-pressure-session-active .wb-live-archive-separator {
+  display: none;
+}
+
+.wb-workbench-row--live.wb-pressure-session-active .wb-pressure-main-column {
+  flex: 1 1 auto !important;
+  min-width: 0;
+  max-width: none;
+  width: 100%;
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+}
+
+.wb-workbench-row--live.wb-pressure-session-active .wb-pressure-dialog {
+  width: 100%;
+  max-width: min(100%, var(--wb-thread-max));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/** 压力练习：结束按钮弱显，悬停/聚焦时清晰 */
+.pressure-session-exit-btn {
+  opacity: 0.45;
+  transition: opacity 0.2s ease;
+}
+
+.pressure-session-exit-btn:hover:not(:disabled),
+.pressure-session-exit-btn:focus-visible:not(:disabled) {
+  opacity: 1;
+}

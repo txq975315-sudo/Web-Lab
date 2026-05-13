@@ -4,6 +4,7 @@ import {
   ArchaeologyListBody,
   PlaceholderBody,
 } from './workbenchToolBodies'
+import PressureSessionHistoryPanel from '../../features/pressureTest/PressureSessionHistoryPanel.jsx'
 
 function PanelChrome({ title, onClose, children }) {
   return (
@@ -106,10 +107,7 @@ export default function WorkbenchLeftPanel({ tool, onClose, surface = 'solid' })
   if (tool === 'practice') {
     return (
       <Chrome title="历史压力练习" onClose={onClose}>
-        <PlaceholderBody
-          transparent={transparent}
-          text="演练会话历史将汇总于此（与右侧 LiveLab 历史互通后续接入）。"
-        />
+        <PressureSessionHistoryPanel transparent={transparent} />
       </Chrome>
     )
   }

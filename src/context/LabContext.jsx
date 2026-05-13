@@ -2,7 +2,7 @@
  * 项目树与文档的单一真相入口（持久化：`STORAGE_KEYS.PROJECT_TREE` → thinking-lab-project-tree）。
  * 数据读写契约见仓库根目录 docs/DATA_CONTRACT.md — 新业务禁止写入 dataStore 扁平 store。
  */
-import React, { createContext, useContext, useReducer, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useReducer, useEffect, useState, useCallback, useRef } from 'react'
 import { useLocalStorage, STORAGE_KEYS } from '../hooks/useLocalStorage'
 import { syncAllBacklinks, extractReferencedIds } from '../utils/linkParser'
 import { getForcedCategory, getProjectCategoryParentId, TEMPLATES } from '../config/templates'
@@ -447,6 +447,11 @@ export function LabProvider({ children }) {
   const [highlightedDocId, setHighlightedDocId] = useState(null)
   const [archivedMessageId, setArchivedMessageId] = useState(null)
   const [previousProjectId, setPreviousProjectId] = useState(null)
+  /** 进入压力工作台前的项目 id；在台内未手动选项目时，离开 live 后恢复 */
+  const pressureLiveStashedProjectRef = useRef(/** @type {string|null} */ (null))
+  /** 从「历史压力练习」等处继续会话：切到 live 后由 LabPanel 消费 */
+  const pressureResumeSessionRef = useRef(/** @type {string|null} */ (null))
+  const [pressureWorkbenchActiveSessionId, setPressureWorkbenchActiveSessionId] = useState(/** @type {string|null} */ (null))
   const [viewingHistorySessionId, setViewingHistorySessionId] = useState(null)
   const [documentConflicts, setDocumentConflicts] = useState({})
   const [labMessageToSend, setLabMessageToSend] = useState(null)
@@ -939,23 +944,57 @@ export function LabProvider({ children }) {
 
   const switchLabMode = useCallback(
     (mode) => {
-      if (
-        mode === 'archaeology' &&
-        (labMode === 'live' || labMode === 'coach' || labMode === 'dashboard')
-      ) {
-        setPreviousProjectId(state.activeProjectId)
-      }
+      let resolvedActive = state.activeProjectId
+
       if (labMode === 'archaeology' && mode !== 'archaeology') {
         if (previousProjectId) {
+          resolvedActive = previousProjectId
           setActiveProject(previousProjectId)
           setPreviousProjectId(null)
         }
         setActiveArchaeologyId(null)
       }
+
+      if (mode === 'archaeology' && (labMode === 'live' || labMode === 'coach' || labMode === 'dashboard')) {
+        if (labMode === 'live') {
+          setPreviousProjectId(resolvedActive ?? pressureLiveStashedProjectRef.current ?? null)
+          pressureLiveStashedProjectRef.current = null
+        } else {
+          setPreviousProjectId(resolvedActive ?? null)
+        }
+      }
+
+      if (labMode === 'live' && mode !== 'live' && mode !== 'archaeology') {
+        if (!resolvedActive && pressureLiveStashedProjectRef.current) {
+          setActiveProject(pressureLiveStashedProjectRef.current)
+        }
+        pressureLiveStashedProjectRef.current = null
+      }
+
+      if (mode === 'live' && labMode !== 'live') {
+        const stash = labMode === 'archaeology' ? resolvedActive : state.activeProjectId
+        pressureLiveStashedProjectRef.current = stash ?? null
+        setActiveProject(null)
+      }
+
       setLabMode(mode)
     },
     [labMode, previousProjectId, state.activeProjectId, setActiveArchaeologyId, setLabMode]
   )
+
+  const continuePressureSession = useCallback(
+    (sessionId) => {
+      pressureResumeSessionRef.current = sessionId
+      switchLabMode('live')
+    },
+    [switchLabMode]
+  )
+
+  const consumePressureResumeSessionId = useCallback(() => {
+    const id = pressureResumeSessionRef.current
+    pressureResumeSessionRef.current = null
+    return id
+  }, [])
 
   // 向后兼容：添加缺失的方法作为空实现
   const createArchaeologySession = useCallback((text) => {
@@ -1180,6 +1219,10 @@ export function LabProvider({ children }) {
     clearDocumentConflicts,
     auditFullProject,
     switchLabMode,
+    continuePressureSession,
+    consumePressureResumeSessionId,
+    pressureWorkbenchActiveSessionId,
+    setPressureWorkbenchActiveSessionId,
     setActiveHeadingId,
     
     // 新增的向后兼容方法

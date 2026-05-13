@@ -80,7 +80,7 @@ export default function PressureTestWorkbench({ draftValue, setDraftValue, onSub
         />
 
         <p className="mt-4 text-xs leading-relaxed" style={{ color: 'var(--wb-muted)' }}>
-          下方「实时演练」仍可使用旧版 Live Lab 追问格式；本入口进入的是<strong className="font-medium">新版结构化引擎</strong>（拆解 JSON、质检与盲区报告）。
+          引擎按 PRD 执行 <strong className="font-medium">3 轮 × 3 问</strong> 链式追问，并在结束后给出盲区快照。已保存的会话在左侧栏「历史压力练习」中按日期查看与继续。
         </p>
 
         <div className="mt-8 flex justify-end">

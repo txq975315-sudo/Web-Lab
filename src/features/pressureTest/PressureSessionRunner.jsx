@@ -5,6 +5,15 @@ import { findAwaitingAnswerSlot } from './pressureTypes.js'
 import { bootstrapPressureSession, submitPressureAnswer } from './pressureApi.js'
 
 /**
+ * @param {import('./pressureTypes.js').PressureSession|null|undefined} session
+ */
+function shouldConfirmBeforeExit(session) {
+  if (!session) return false
+  if (session.status === 'completed' && session.blindSpotReport) return false
+  return true
+}
+
+/**
  * @param {object} props
  * @param {string} props.sessionId
  * @param {() => void} props.onExit
@@ -19,6 +28,24 @@ export default function PressureSessionRunner({ sessionId, onExit, onRestart, on
   const refresh = useCallback(() => {
     setSession(getPressureSession(sessionId))
   }, [sessionId])
+
+  const requestExit = useCallback(() => {
+    const s = getPressureSession(sessionId)
+    if (shouldConfirmBeforeExit(s)) {
+      if (!window.confirm('确定要退出吗？进度将保存。')) return
+    }
+    onExit()
+  }, [sessionId, onExit])
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      requestExit()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [requestExit])
 
   useEffect(() => {
     let cancelled = false
@@ -111,15 +138,15 @@ export default function PressureSessionRunner({ sessionId, onExit, onRestart, on
 
   if (error && session?.status === 'deconstructing') {
     return (
-      <div className="flex flex-col gap-3 px-4 py-6 md:px-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-6 md:px-6">
         <p className="text-sm leading-relaxed" style={{ color: 'var(--color-warning)' }}>
           拆解失败：{error}
         </p>
         <p className="text-xs" style={{ color: 'var(--wb-muted)' }}>
-          请检查网络与 API Key 后重试，或返回对话练习使用原有实时演练。
+          请检查网络与 API Key 后重试。
         </p>
-        <button type="button" className="wb-btn-ghost w-fit px-4 py-2 text-xs" onClick={onExit}>
-          返回
+        <button type="button" className="wb-btn-ghost w-fit px-4 py-2 text-xs" onClick={requestExit}>
+          结束练习
         </button>
       </div>
     )
@@ -127,12 +154,12 @@ export default function PressureSessionRunner({ sessionId, onExit, onRestart, on
 
   if (error && !session) {
     return (
-      <div className="flex flex-col gap-3 px-4 py-6 md:px-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-6 md:px-6">
         <p className="text-sm" style={{ color: 'var(--color-warning)' }}>
           {error}
         </p>
-        <button type="button" className="wb-btn-ghost w-fit px-4 py-2 text-xs" onClick={onExit}>
-          返回
+        <button type="button" className="wb-btn-ghost w-fit px-4 py-2 text-xs" onClick={requestExit}>
+          结束练习
         </button>
       </div>
     )
@@ -149,11 +176,12 @@ export default function PressureSessionRunner({ sessionId, onExit, onRestart, on
           </h2>
           <button
             type="button"
-            className="rounded-full px-3 py-1.5 text-xs font-medium hover:bg-[rgba(15,23,42,0.06)]"
+            className="pressure-session-exit-btn rounded-full px-3 py-1.5 text-xs font-medium hover:bg-[rgba(15,23,42,0.06)]"
             style={{ color: 'var(--wb-muted)' }}
-            onClick={onExit}
+            onClick={requestExit}
+            title="结束练习（Esc）"
           >
-            返回对话练习
+            结束练习
           </button>
         </div>
 
@@ -265,13 +293,13 @@ export default function PressureSessionRunner({ sessionId, onExit, onRestart, on
         </div>
         <button
           type="button"
-          className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium hover:bg-[rgba(15,23,42,0.06)]"
+          className="pressure-session-exit-btn shrink-0 rounded-full px-3 py-1.5 text-xs font-medium hover:bg-[rgba(15,23,42,0.06)]"
           style={{ color: 'var(--wb-muted)' }}
-          title="进度已写入本机，稍后在「已保存的会话」里继续"
-          onClick={onExit}
+          title="进度已保存至本机；结束练习（Esc）"
+          onClick={requestExit}
           disabled={busy}
         >
-          保存并退出
+          结束练习
         </button>
       </div>
 
@@ -323,7 +351,6 @@ export default function PressureSessionRunner({ sessionId, onExit, onRestart, on
           </>
         )}
       </div>
-
     </div>
   )
 }

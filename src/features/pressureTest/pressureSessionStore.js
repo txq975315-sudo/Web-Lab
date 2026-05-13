@@ -23,6 +23,11 @@ function readBucket() {
 
 function writeBucket(bucket) {
   localStorage.setItem(STORAGE_KEYS.PRESSURE_ENGINE_SESSIONS, JSON.stringify(bucket))
+  try {
+    window.dispatchEvent(new CustomEvent('thinking-lab-pressure-sessions-changed'))
+  } catch {
+    /* ignore */
+  }
 }
 
 /**

@@ -10,7 +10,6 @@ import GrowthCoachPanel from './growthCoach/GrowthCoachPanel'
 import { LAB_BACKGROUND_IMAGES, getLabBackgroundIndex } from '../config/labBackgrounds'
 import PressureTestWorkbench from '../features/pressureTest'
 import PressureSessionRunner from '../features/pressureTest/PressureSessionRunner.jsx'
-import PressureSessionList from '../features/pressureTest/PressureSessionList.jsx'
 import { createPressureSession } from '../features/pressureTest/pressureSessionStore.js'
 import WorkbenchMiddleToolColumn from './workbench/WorkbenchMiddleToolColumn'
 import ModuleSegmentedControl from './workbench/ModuleSegmentedControl'
@@ -284,20 +283,31 @@ export default function LabPanel({
   onWorkbenchRailToolClose,
   onPressureTestStart,
 }) {
-  const { labMode, switchLabMode, projectTree, activeProjectId, activeDocId, allHistoryMessages, viewingHistorySessionId, setViewingHistorySessionId, saveMessageToHistory, startNewSession, labMessageToSend, autoSendLabMessage, getMemorySummary, currentSessionId, setCurrentSessionId } = useLab()
+  const {
+    labMode,
+    switchLabMode,
+    projectTree,
+    activeProjectId,
+    activeDocId,
+    allHistoryMessages,
+    viewingHistorySessionId,
+    setViewingHistorySessionId,
+    saveMessageToHistory,
+    startNewSession,
+    labMessageToSend,
+    autoSendLabMessage,
+    getMemorySummary,
+    currentSessionId,
+    setCurrentSessionId,
+    setPressureWorkbenchActiveSessionId,
+    consumePressureResumeSessionId,
+  } = useLab()
   const [inputValue, setInputValue] = useState('')
   const [stressDraft, setStressDraft] = useState('')
   const [pressureRunnerSessionId, setPressureRunnerSessionId] = useState(/** @type {string|null} */ (null))
   const [messages, setMessages] = useState(() => LIVE_LAB_DEFAULT_SEED_MESSAGES.map((m) => ({ ...m })))
   const [selectionMenu, setSelectionMenu] = useState(null)
   const workbenchComposerRef = useRef(null)
-  const [pressureGuideOpen, setPressureGuideOpen] = useState(() => {
-    try {
-      return sessionStorage.getItem('thinking-lab-pressure-guide') !== 'dismissed'
-    } catch {
-      return true
-    }
-  })
 
   const WB_INLINE_DOC_W_KEY = 'thinking-lab-wb-inline-doc-width-v1'
   const [wbInlineDocWidth, setWbInlineDocWidth] = useState(() => {
@@ -348,6 +358,20 @@ export default function LabPanel({
   const historyMessages = viewingHistorySessionId 
     ? allHistoryMessages[activeProjectId]?.[viewingHistorySessionId] || []
     : []
+
+  useEffect(() => {
+    if (!workbenchLayout || labMode !== 'live') return
+    const pending = consumePressureResumeSessionId()
+    if (pending) setPressureRunnerSessionId(pending)
+  }, [workbenchLayout, labMode, consumePressureResumeSessionId])
+
+  useEffect(() => {
+    if (workbenchLayout && labMode === 'live') {
+      setPressureWorkbenchActiveSessionId(pressureRunnerSessionId)
+    } else {
+      setPressureWorkbenchActiveSessionId(null)
+    }
+  }, [workbenchLayout, labMode, pressureRunnerSessionId, setPressureWorkbenchActiveSessionId])
 
   /** 从持久化恢复当前会话消息（刷新/切项目后不再只剩演示三句）。勿依赖 allHistoryMessages 引用频繁重跑，以免打断流式输出。 */
   useEffect(() => {
@@ -426,24 +450,6 @@ export default function LabPanel({
   /** 工作台「学」：与「练」一致使用 mint 底，不使用全屏装饰背景图 */
   const coachWorkbenchSurface = flushChrome && hideTopTabs && labMode === 'coach'
 
-  const dismissPressureGuide = () => {
-    setPressureGuideOpen(false)
-    try {
-      sessionStorage.setItem('thinking-lab-pressure-guide', 'dismissed')
-    } catch {
-      /* ignore */
-    }
-  }
-
-  const openPressureGuide = () => {
-    setPressureGuideOpen(true)
-    try {
-      sessionStorage.removeItem('thinking-lab-pressure-guide')
-    } catch {
-      /* ignore */
-    }
-  }
-
   return (
     <div
       className={`h-full flex overflow-hidden ${flushChrome ? 'rounded-none border-0 shadow-none' : 'rounded-l-lg rounded-r-2xl border border-lab-border-subtle shadow-card'}`}
@@ -519,13 +525,23 @@ export default function LabPanel({
         )}
 
         {wbLive ? (
-          <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
-            <WorkbenchMiddleToolColumn tool={workbenchRailTool} onClose={onWorkbenchRailToolClose || (() => {})} />
+            <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
+              <WorkbenchMiddleToolColumn
+                tool={workbenchRailTool}
+                onClose={onWorkbenchRailToolClose || (() => {})}
+                pressureHistory={{
+                  activeRunnerId: pressureRunnerSessionId,
+                  onContinue: (id) => setPressureRunnerSessionId(id),
+                  onAfterDelete: (id) => {
+                    if (id === pressureRunnerSessionId) setPressureRunnerSessionId(null)
+                  },
+                }}
+              />
 
             {activeDocId && (
               <>
                 <div
-                  className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg bg-transparent"
+                  className="wb-live-archive-inline flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg bg-transparent"
                   style={{
                     flex: '1 1 auto',
                     minWidth: wbInlineDocWidth,
@@ -540,7 +556,7 @@ export default function LabPanel({
                   aria-orientation="vertical"
                   aria-label="拖动调整文档区宽度"
                   onMouseDown={onWbDocResizePointerDown}
-                  className="group relative w-2 shrink-0 cursor-col-resize select-none touch-none"
+                  className="wb-live-archive-separator group relative w-2 shrink-0 cursor-col-resize select-none touch-none"
                 >
                   <div
                     className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-[rgba(15,23,42,0.12)] transition-colors group-hover:bg-[var(--color-accent-orange)]"
@@ -551,7 +567,7 @@ export default function LabPanel({
             )}
 
             <div
-              className="flex min-h-0 min-w-0 flex-col pb-3 pl-1 pr-3 pt-0 md:pb-4 md:pl-2 md:pr-5"
+              className="wb-pressure-main-column flex min-h-0 min-w-0 flex-col pb-3 pl-1 pr-3 pt-0 md:pb-4 md:pl-2 md:pr-5"
               style={
                 activeDocId
                   ? { flex: '0 1 min(65%, 56rem)', minWidth: 0 }
@@ -568,100 +584,29 @@ export default function LabPanel({
                     onExit={() => setPressureRunnerSessionId(null)}
                     onRestart={() => {
                       setPressureRunnerSessionId(null)
-                      setPressureGuideOpen(true)
                     }}
                     onOpenGrowthCoach={() => {
                       switchLabMode('coach')
                       setPressureRunnerSessionId(null)
                     }}
                   />
-                ) : pressureGuideOpen ? (
-                  <>
-                    <div className="wb-pressure-dialog-guide-scroll min-h-0 flex-1 overflow-y-auto scroll-smooth">
-                      <div className="wb-pressure-dialog-guide-inner wb-thread w-full px-4 py-4 md:px-6">
-                        <PressureSessionList
-                          activeRunnerId={pressureRunnerSessionId}
-                          onContinue={(id) => {
-                            setPressureRunnerSessionId(id)
-                            dismissPressureGuide()
-                          }}
-                          onAfterDelete={(id) => {
-                            if (id === pressureRunnerSessionId) setPressureRunnerSessionId(null)
-                          }}
-                        />
-                        <PressureTestWorkbench
-                          draftValue={stressDraft}
-                          setDraftValue={setStressDraft}
-                          disabled={false}
-                          onSubmit={() => {
-                            if (!stressDraft.trim()) return
-                            onPressureTestStart?.()
-                            const id = createPressureSession(stressDraft.trim())
-                            setPressureRunnerSessionId(id)
-                            dismissPressureGuide()
-                            setStressDraft('')
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </>
                 ) : (
-                  <>
-                    <div className="wb-thread w-full shrink-0 px-4 pt-3 md:px-6">
-                      <div className="wb-substrip flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl px-4 py-2.5 md:px-5">
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold" style={{ color: 'var(--wb-text)' }}>
-                            对话练习
-                          </p>
-                          <p className="truncate text-[11px]" style={{ color: 'var(--wb-muted)' }}>
-                            下方为追问区；新建或继续请在「已保存的会话」与引导页操作
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={openPressureGuide}
-                            className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-200 hover:bg-[var(--wb-primary-muted)]"
-                            style={{
-                              color: 'var(--wb-primary-hex, #3a4a40)',
-                              background: 'rgba(15, 23, 42, 0.05)',
-                            }}
-                          >
-                            已保存的会话
-                          </button>
-                          <button
-                            type="button"
-                            onClick={openPressureGuide}
-                            className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-200 hover:bg-[var(--wb-primary-muted)]"
-                            style={{
-                              color: 'var(--wb-primary-hex, #3a4a40)',
-                              background: 'rgba(15, 23, 42, 0.05)',
-                            }}
-                          >
-                            编辑初始想法
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-                      <LiveLab
-                        messages={messages}
-                        setMessages={setMessages}
-                        inputValue={inputValue}
-                        setInputValue={setInputValue}
-                        handleTextSelect={handleTextSelect}
-                        historyMessages={historyMessages}
-                        viewingHistorySessionId={viewingHistorySessionId}
-                        setViewingHistorySessionId={setViewingHistorySessionId}
-                        activeProjectId={activeProjectId}
-                        saveMessageToHistory={saveMessageToHistory}
-                        currentSessionId={currentSessionId}
-                        setCurrentSessionId={setCurrentSessionId}
-                        workbenchUi={wbLive}
-                        workbenchComposerRef={workbenchComposerRef}
+                  <div className="wb-pressure-dialog-guide-scroll min-h-0 flex-1 overflow-y-auto scroll-smooth">
+                    <div className="wb-pressure-dialog-guide-inner wb-thread w-full px-4 py-4 md:px-6">
+                      <PressureTestWorkbench
+                        draftValue={stressDraft}
+                        setDraftValue={setStressDraft}
+                        disabled={false}
+                        onSubmit={() => {
+                          if (!stressDraft.trim()) return
+                          onPressureTestStart?.()
+                          const id = createPressureSession(stressDraft.trim())
+                          setPressureRunnerSessionId(id)
+                          setStressDraft('')
+                        }}
                       />
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             </div>
