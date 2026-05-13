@@ -49,6 +49,7 @@ export default function SettingsModal({ isOpen, onClose }) {
   const [baseURL, setBaseURL] = useState('')
   const [model, setModel] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
+  const [explainProfessionalTerms, setExplainProfessionalTerms] = useState(true)
 
   useEffect(() => {
     if (isOpen) {
@@ -58,6 +59,7 @@ export default function SettingsModal({ isOpen, onClose }) {
         setApiKey(config.apiKey || '')
         setBaseURL(config.baseURL || '')
         setModel(config.model || '')
+        setExplainProfessionalTerms(config.explainProfessionalTerms !== false)
       } else {
         setProvider('openrouter')
         setApiKey('')
@@ -86,6 +88,7 @@ export default function SettingsModal({ isOpen, onClose }) {
       apiKey,
       baseURL,
       model,
+      explainProfessionalTerms,
     }
     saveConfig(config)
     onClose()
@@ -218,6 +221,22 @@ export default function SettingsModal({ isOpen, onClose }) {
               placeholder="gpt-4o"
               className="w-full px-4 py-2.5 rounded-lab text-sm text-lab-ink placeholder:text-lab-faint outline-none bg-lab-raised border border-lab-border focus-visible:ring-2 focus-visible:ring-lab-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lab-overlay"
             />
+          </div>
+
+          <div className="flex items-start gap-3 rounded-xl border border-lab-border-subtle bg-lab-raised/40 px-4 py-3">
+            <input
+              id="explain-professional-terms"
+              type="checkbox"
+              checked={explainProfessionalTerms}
+              onChange={(e) => setExplainProfessionalTerms(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-lab-border text-lab-accent focus:ring-lab-accent"
+            />
+            <label htmlFor="explain-professional-terms" className="cursor-pointer text-sm leading-snug text-lab-ink">
+              <span className="font-medium">专业术语附带详细解释</span>
+              <span className="mt-1 block text-xs text-lab-muted leading-relaxed">
+                开启后，AI 在输出中首次出现 CAC、LTV、ARR、PMF 等缩写或同类专有名词时，会紧跟括号用中文说明含义与常见口径（默认开启；关闭可略省篇幅）。
+              </span>
+            </label>
           </div>
 
           <div className="rounded-xl p-4 space-y-3 bg-lab-raised border border-lab-border-subtle">

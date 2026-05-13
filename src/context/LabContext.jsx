@@ -62,7 +62,7 @@ const DEFAULT_PROJECT_TREE = [
     type: 'project',
     expanded: true,
     constitution: {
-      constraints: ['专注位不可改', 'Android Only', '用户隐私优先', '数据可移植性', '渐进式交付'],
+      constraints: [],
       manifesto: {
         fields: {
           slogan: '',
@@ -488,7 +488,7 @@ export function LabProvider({ children }) {
   // 初始化 session id
   useEffect(() => {
     if (!currentSessionId) {
-      const newSessionId = `session-${Date.now()}`
+      const newSessionId = `session_${Date.now()}`
       setCurrentSessionId(newSessionId)
     }
   }, [currentSessionId, setCurrentSessionId])

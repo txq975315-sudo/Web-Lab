@@ -23,5 +23,7 @@ export const STORAGE_KEYS = Object.freeze({
   CONSTITUTION: 'thinking-lab-constitution',
   ARCHIVES: 'thinking-lab-archives',
   ARCHAELOGY: 'thinking-lab-archaeology',
-  GROWTH_SKILL_PROGRESS: 'thinking-lab-growth-skill-progress'
+  GROWTH_SKILL_PROGRESS: 'thinking-lab-growth-skill-progress',
+  /** 压力测试引擎：结构化会话（9 问 + 拆解 + 盲区快照） */
+  PRESSURE_ENGINE_SESSIONS: 'thinking-lab-pressure-engine-sessions'
 })

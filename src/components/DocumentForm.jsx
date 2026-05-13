@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getTemplateFields, getTemplateLabel, getTemplateIcon, createDefaultFields } from '../config/templates'
 import { generateDocumentConfig } from '../config/documentGenerators'
+import { augmentSystemPromptWithTerminology } from '../utils/aiTerminologyPreference.js'
 
 const FOCUS_BORDER = 'var(--color-brand-blue)'
 const BLUR_BORDER = 'var(--color-border-default)'
@@ -150,7 +151,7 @@ export default function DocumentForm({ doc, onSave, onCancel }) {
       
       const { chatComplete } = await import('../utils/aiApi');
       const aiContent = await chatComplete([
-        { role: 'system', content: aiConfig.systemPrompt },
+        { role: 'system', content: augmentSystemPromptWithTerminology(aiConfig.systemPrompt) },
         { role: 'user', content: userPrompt }
       ]);
       console.log('[AI生成] 成功，内容长度:', aiContent.length);

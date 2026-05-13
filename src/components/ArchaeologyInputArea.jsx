@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { archaeologyStore } from '../utils/dataStore'
 import { chatComplete as callAI } from '../utils/aiApi'
+import { augmentSystemPromptWithTerminology } from '../utils/aiTerminologyPreference.js'
 
 // 考古分析 Prompt（五维分析）
 const ARCHAEOLOGY_V2_PROMPT = `你是一位资深产品决策分析师。分析以下对话记录，进行五维分析。
@@ -45,7 +46,7 @@ export default function ArchaeologyInputArea({ sessionId, onAnalysisComplete }) 
       console.log('[考古] 开始分析，对话长度:', mergedText.length)
 
       const messages = [
-        { role: 'system', content: ARCHAEOLOGY_V2_PROMPT },
+        { role: 'system', content: augmentSystemPromptWithTerminology(ARCHAEOLOGY_V2_PROMPT) },
         { role: 'user', content: mergedText }
       ]
 

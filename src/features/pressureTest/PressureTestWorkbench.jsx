@@ -1,11 +1,3 @@
-import { useState, useEffect } from 'react'
-
-const DEPTH_OPTIONS = [
-  { id: 'fast', label: '快速', sub: '6 轮' },
-  { id: 'standard', label: '标准', sub: '12 轮' },
-  { id: 'deep', label: '深度', sub: '20 轮' },
-]
-
 const EXAMPLES = [
   {
     text: '我想做一款帮助职场人专注的番茄钟 App，和 Forest 差异化在社群打卡。',
@@ -36,38 +28,8 @@ function ChevronRight() {
 }
 
 export default function PressureTestWorkbench({ draftValue, setDraftValue, onSubmit, disabled }) {
-  const [depth, setDepthState] = useState(() => {
-    try {
-      return localStorage.getItem(STORAGE_DEPTH) || 'standard'
-    } catch {
-      return 'standard'
-    }
-  })
-
-  useEffect(() => {
-    const onStorage = () => {
-      try {
-        setDepthState(localStorage.getItem(STORAGE_DEPTH) || 'standard')
-      } catch {
-        /* ignore */
-      }
-    }
-    window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
-  }, [])
-
-  const setDepth = (id) => {
-    try {
-      localStorage.setItem(STORAGE_DEPTH, id)
-    } catch {
-      /* ignore */
-    }
-    setDepthState(id)
-  }
-
   return (
     <div className="flex w-full flex-col gap-4">
-      {/* 与下方卡片内边距 p-6/md:p-8 对齐，避免问候区与卡片左右错位 */}
       <div className="flex flex-wrap items-center gap-4 px-6 md:px-8">
         <div
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full shadow-[0_1px_8px_rgba(20,20,19,0.06)]"
@@ -93,7 +55,7 @@ export default function PressureTestWorkbench({ draftValue, setDraftValue, onSub
             有什么想法需要我帮你压力测试吗？
           </p>
           <p className="mt-1 text-sm" style={{ color: 'var(--wb-muted)' }}>
-            尽量写清用户、痛点与差异化，追问会更有针对性。
+            尽量写清用户、痛点与差异化；引擎将按 PRD 执行 <strong className="font-medium">3 轮 × 3 问</strong> 链式追问，并在结束后给出盲区快照。
           </p>
         </div>
       </div>
@@ -117,37 +79,9 @@ export default function PressureTestWorkbench({ draftValue, setDraftValue, onSub
           }}
         />
 
-        <p className="mt-6 text-xs font-medium" style={{ color: 'var(--wb-muted)' }}>
-          选择追问深度
+        <p className="mt-4 text-xs leading-relaxed" style={{ color: 'var(--wb-muted)' }}>
+          下方「实时演练」仍可使用旧版 Live Lab 追问格式；本入口进入的是<strong className="font-medium">新版结构化引擎</strong>（拆解 JSON、质检与盲区报告）。
         </p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {DEPTH_OPTIONS.map((d) => {
-            const isOn = depth === d.id
-            return (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => setDepth(d.id)}
-                className={`cursor-pointer px-4 py-2 text-xs font-medium transition-all duration-200 ${
-                  isOn ? '' : 'wb-btn-ghost'
-                }`}
-                style={{
-                  borderRadius: 'var(--wb-radius-btn, 20px)',
-                  ...(isOn
-                    ? {
-                        background: 'var(--color-bg-overlay)',
-                        border: '1px solid var(--color-border-default)',
-                        color: 'var(--color-text-primary)',
-                        boxShadow: '0 1px 3px rgba(20, 20, 19, 0.05)',
-                      }
-                    : {}),
-                }}
-              >
-                {d.label} <span className="opacity-85">({d.sub})</span>
-              </button>
-            )
-          })}
-        </div>
 
         <div className="mt-8 flex justify-end">
           <button

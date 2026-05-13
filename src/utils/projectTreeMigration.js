@@ -1,8 +1,40 @@
 /**
  * 将旧版「Insight / Archive / Decision」三栏项目树迁移为
  * 标准「01–06 模块」结构，避免 Trae 等内嵌浏览器沿用旧 localStorage 时侧栏与新版不一致。
+ *
+ * 同时移除早期种子数据里写死的演示性 constitution.constraints（含「Android Only」等），
+ * 避免 AI 在 Live Lab 中误当作用户真实「宪法」。
  */
 import { getForcedCategory } from '../config/templates'
+
+/** 旧版默认演示约束（与 LabContext DEFAULT_PROJECT_TREE 曾用条目一致）；命中则清空 */
+export const LEGACY_DEMO_CONSTITUTION_CONSTRAINTS = Object.freeze([
+  '专注位不可改',
+  'Android Only',
+  '用户隐私优先',
+  '数据可移植性',
+  '渐进式交付',
+])
+
+function isLegacyDemoConstraints(constraints) {
+  if (!Array.isArray(constraints) || constraints.length !== LEGACY_DEMO_CONSTITUTION_CONSTRAINTS.length) {
+    return false
+  }
+  return LEGACY_DEMO_CONSTITUTION_CONSTRAINTS.every((s, i) => constraints[i] === s)
+}
+
+function stripLegacyDemoConstitution(project) {
+  if (project?.type !== 'project' || !isLegacyDemoConstraints(project.constitution?.constraints)) {
+    return project
+  }
+  return {
+    ...project,
+    constitution: {
+      ...project.constitution,
+      constraints: [],
+    },
+  }
+}
 
 const EXPECTED = [
   '01 项目宪法',
@@ -205,12 +237,18 @@ export function migrateProjectTreeIfNeeded(tree) {
   }
 
   let didMigrate = false
-  const next = tree.map(project => {
+  const next = tree.map((project) => {
     if (project?.type !== 'project') return project
-    if (hasModernSixModules(project)) return project
-    if (!isLegacyThreeColumnProject(project)) return project
-    didMigrate = true
-    return convertLegacyProjectToModern(project)
+    let p = project
+    if (!hasModernSixModules(p) && isLegacyThreeColumnProject(p)) {
+      didMigrate = true
+      p = convertLegacyProjectToModern(p)
+    }
+    if (isLegacyDemoConstraints(p.constitution?.constraints)) {
+      didMigrate = true
+      p = stripLegacyDemoConstitution(p)
+    }
+    return p
   })
 
   return { tree: next, didMigrate }

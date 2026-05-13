@@ -4,6 +4,7 @@ import { chatComplete } from '../../utils/aiApi'
 import { extractJsonBlock } from '../../utils/extractJsonBlock'
 import { getMethodologyForTemplate } from '../../config/methodology'
 import * as prompts from '../../config/growthCoachPrompts'
+import { augmentSystemPromptWithTerminology } from '../../utils/aiTerminologyPreference.js'
 import { recordCoachSession, getTemplateAttempts } from '../../utils/growthCoachStore'
 import KnowledgeCard from './KnowledgeCard'
 import ExerciseForm from './ExerciseForm'
@@ -76,7 +77,7 @@ export default function GrowthCoachPanel() {
       try {
         const userPrompt = prompts.buildKnowledgeCardPrompt(projectName, methodologyName)
         const text = await chatComplete([
-          { role: 'system', content: prompts.SYSTEM_JSON_PUBLIC_GROUNDING },
+          { role: 'system', content: augmentSystemPromptWithTerminology(prompts.SYSTEM_JSON_PUBLIC_GROUNDING) },
           { role: 'user', content: userPrompt }
         ])
         if (cancelled) return
@@ -101,7 +102,7 @@ export default function GrowthCoachPanel() {
       try {
         const userPrompt = prompts.buildExerciseScenarioPrompt(projectName, methodologyName, attemptNumber)
         const text = await chatComplete([
-          { role: 'system', content: prompts.SYSTEM_JSON_PUBLIC_GROUNDING },
+          { role: 'system', content: augmentSystemPromptWithTerminology(prompts.SYSTEM_JSON_PUBLIC_GROUNDING) },
           { role: 'user', content: userPrompt }
         ])
         if (cancelled) return
@@ -137,7 +138,7 @@ export default function GrowthCoachPanel() {
         methodologyName
       )
       const text = await chatComplete([
-        { role: 'system', content: prompts.SYSTEM_JSON_PUBLIC_GROUNDING },
+        { role: 'system', content: augmentSystemPromptWithTerminology(prompts.SYSTEM_JSON_PUBLIC_GROUNDING) },
         { role: 'user', content: userPrompt }
       ])
       const json = extractJsonBlock(text)

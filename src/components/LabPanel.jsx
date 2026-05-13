@@ -5,13 +5,30 @@ import SelectionMenu from './SelectionMenu'
 import ChatHistorySidebar from './ChatHistorySidebar'
 import { chatComplete } from '../utils/aiApi'
 import { ARCHAEOLOGY_PROMPT } from '../config/aiPrompts'
+import { augmentSystemPromptWithTerminology } from '../utils/aiTerminologyPreference.js'
 import GrowthCoachPanel from './growthCoach/GrowthCoachPanel'
 import { LAB_BACKGROUND_IMAGES, getLabBackgroundIndex } from '../config/labBackgrounds'
 import PressureTestWorkbench from '../features/pressureTest'
+import PressureSessionRunner from '../features/pressureTest/PressureSessionRunner.jsx'
+import PressureSessionList from '../features/pressureTest/PressureSessionList.jsx'
+import { createPressureSession } from '../features/pressureTest/pressureSessionStore.js'
 import WorkbenchMiddleToolColumn from './workbench/WorkbenchMiddleToolColumn'
 import ModuleSegmentedControl from './workbench/ModuleSegmentedControl'
 import ArchivePanel from './ArchivePanel'
 import LiveLab from './LabPanel/LiveLab'
+
+/** 实时演练无历史时的占位消息（与本地持久化无关） */
+const LIVE_LAB_DEFAULT_SEED_MESSAGES = [
+  { id: 'seed-system', type: 'system', content: '欢迎来到 Thinking Lab，开始你的商业化思维练习吧！', time: '刚刚' },
+  { id: 'seed-user-demo', type: 'user', content: '什么是商业化思维？', time: '10:30' },
+  {
+    id: 'seed-assistant-demo',
+    type: 'assistant',
+    content:
+      '商业化思维是一种将创意和价值转化为可持续商业模式的思考方式。它要求我们从市场、用户、竞争和财务等多个维度系统性地分析商业机会，并将碎片化的洞察转化为可执行的商业策略。',
+    time: '10:31',
+  },
+]
 
 function ArchaeologyLab() {
   const { createArchaeologySession, archaeologySessions, activeArchaeologyId, setActiveArchaeologyId, updateArchaeologySession } = useLab()
@@ -35,7 +52,7 @@ function ArchaeologyLab() {
 
     try {
       const result = await chatComplete([
-        { role: 'system', content: ARCHAEOLOGY_PROMPT },
+        { role: 'system', content: augmentSystemPromptWithTerminology(ARCHAEOLOGY_PROMPT) },
         { role: 'user', content: pasteText }
       ])
 
@@ -270,11 +287,8 @@ export default function LabPanel({
   const { labMode, switchLabMode, projectTree, activeProjectId, activeDocId, allHistoryMessages, viewingHistorySessionId, setViewingHistorySessionId, saveMessageToHistory, startNewSession, labMessageToSend, autoSendLabMessage, getMemorySummary, currentSessionId, setCurrentSessionId } = useLab()
   const [inputValue, setInputValue] = useState('')
   const [stressDraft, setStressDraft] = useState('')
-  const [messages, setMessages] = useState([
-    { id: 'seed-system', type: 'system', content: '欢迎来到 Thinking Lab，开始你的商业化思维练习吧！', time: '刚刚' },
-    { id: 'seed-user-demo', type: 'user', content: '什么是商业化思维？', time: '10:30' },
-    { id: 'seed-assistant-demo', type: 'assistant', content: '商业化思维是一种将创意和价值转化为可持续商业模式的思考方式。它要求我们从市场、用户、竞争和财务等多个维度系统性地分析商业机会，并将碎片化的洞察转化为可执行的商业策略。', time: '10:31' }
-  ])
+  const [pressureRunnerSessionId, setPressureRunnerSessionId] = useState(/** @type {string|null} */ (null))
+  const [messages, setMessages] = useState(() => LIVE_LAB_DEFAULT_SEED_MESSAGES.map((m) => ({ ...m })))
   const [selectionMenu, setSelectionMenu] = useState(null)
   const workbenchComposerRef = useRef(null)
   const [pressureGuideOpen, setPressureGuideOpen] = useState(() => {
@@ -334,6 +348,19 @@ export default function LabPanel({
   const historyMessages = viewingHistorySessionId 
     ? allHistoryMessages[activeProjectId]?.[viewingHistorySessionId] || []
     : []
+
+  /** 从持久化恢复当前会话消息（刷新/切项目后不再只剩演示三句）。勿依赖 allHistoryMessages 引用频繁重跑，以免打断流式输出。 */
+  useEffect(() => {
+    if (viewingHistorySessionId) return
+    if (!activeProjectId || !currentSessionId) return
+    const stored = allHistoryMessages[activeProjectId]?.[currentSessionId]
+    if (Array.isArray(stored) && stored.length > 0) {
+      setMessages(stored)
+    } else {
+      setMessages(LIVE_LAB_DEFAULT_SEED_MESSAGES.map((m) => ({ ...m })))
+    }
+  }, [activeProjectId, currentSessionId, viewingHistorySessionId])
+  // 仅随「项目 / 会话 / 历史视图」变化重hydrate；不把 allHistoryMessages 放入 deps，避免父级每次存盘后引用变化打断流式输出。
 
   const tabs = [
     { id: 'live', label: '实时演练' },
@@ -535,10 +562,33 @@ export default function LabPanel({
                 <div className="wb-pressure-dialog-segment">
                   <ModuleSegmentedControl variant="dialog" />
                 </div>
-                {pressureGuideOpen ? (
+                {pressureRunnerSessionId ? (
+                  <PressureSessionRunner
+                    sessionId={pressureRunnerSessionId}
+                    onExit={() => setPressureRunnerSessionId(null)}
+                    onRestart={() => {
+                      setPressureRunnerSessionId(null)
+                      setPressureGuideOpen(true)
+                    }}
+                    onOpenGrowthCoach={() => {
+                      switchLabMode('coach')
+                      setPressureRunnerSessionId(null)
+                    }}
+                  />
+                ) : pressureGuideOpen ? (
                   <>
                     <div className="wb-pressure-dialog-guide-scroll min-h-0 flex-1 overflow-y-auto scroll-smooth">
                       <div className="wb-pressure-dialog-guide-inner wb-thread w-full px-4 py-4 md:px-6">
+                        <PressureSessionList
+                          activeRunnerId={pressureRunnerSessionId}
+                          onContinue={(id) => {
+                            setPressureRunnerSessionId(id)
+                            dismissPressureGuide()
+                          }}
+                          onAfterDelete={(id) => {
+                            if (id === pressureRunnerSessionId) setPressureRunnerSessionId(null)
+                          }}
+                        />
                         <PressureTestWorkbench
                           draftValue={stressDraft}
                           setDraftValue={setStressDraft}
@@ -546,13 +596,10 @@ export default function LabPanel({
                           onSubmit={() => {
                             if (!stressDraft.trim()) return
                             onPressureTestStart?.()
-                            const draft = stressDraft.trim()
+                            const id = createPressureSession(stressDraft.trim())
+                            setPressureRunnerSessionId(id)
                             dismissPressureGuide()
-                            setInputValue(draft)
                             setStressDraft('')
-                            window.setTimeout(() => {
-                              workbenchComposerRef.current?.querySelector('[data-send-button]')?.click()
-                            }, 120)
                           }}
                         />
                       </div>
@@ -567,20 +614,33 @@ export default function LabPanel({
                             对话练习
                           </p>
                           <p className="truncate text-[11px]" style={{ color: 'var(--wb-muted)' }}>
-                            下方为追问与补充输入区；需要改初始想法可打开引导页
+                            下方为追问区；新建或继续请在「已保存的会话」与引导页操作
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={openPressureGuide}
-                          className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-200 hover:bg-[var(--wb-primary-muted)]"
-                          style={{
-                            color: 'var(--wb-primary-hex, #3a4a40)',
-                            background: 'rgba(15, 23, 42, 0.05)',
-                          }}
-                        >
-                          编辑初始想法
-                        </button>
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={openPressureGuide}
+                            className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-200 hover:bg-[var(--wb-primary-muted)]"
+                            style={{
+                              color: 'var(--wb-primary-hex, #3a4a40)',
+                              background: 'rgba(15, 23, 42, 0.05)',
+                            }}
+                          >
+                            已保存的会话
+                          </button>
+                          <button
+                            type="button"
+                            onClick={openPressureGuide}
+                            className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-200 hover:bg-[var(--wb-primary-muted)]"
+                            style={{
+                              color: 'var(--wb-primary-hex, #3a4a40)',
+                              background: 'rgba(15, 23, 42, 0.05)',
+                            }}
+                          >
+                            编辑初始想法
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">

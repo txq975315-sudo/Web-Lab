@@ -43,6 +43,7 @@
 ## 4. 应用设置与 AI 配置
 
 - 当前 **API 与模型** 以 **设置弹窗** 写入的 **`thinking-lab-ai-config`**（`STORAGE_KEYS.AI_CONFIG`）为准（与 `SettingsModal` 一致）。  
+- 可选字段 **`explainProfessionalTerms`**（布尔）：为 `false` 时不在 system 提示中追加「专业术语须括号详细解释」规则；缺省或未设置时视为 **开启**（便于阅读 CAC、LTV 等缩写）。  
 - **`settingsStore`（`thinking-lab-legacy-settings`）已废弃**：保留导出仅为兼容极端旧数据；调用 `set` 时开发环境会告警。**禁止在新代码中读写该键。**
 
 ---
@@ -62,7 +63,7 @@
 | **代码根目录** | **`src/features/pressureTest/`** — 压力测试工作台 UI 与后续会话引擎、状态机实现均归此目录（或由其再拆子目录）。 |
 | **薄适配** | `src/components/workbench/PressureTestWorkbench.jsx` 可为对 feature 的 **re-export**，便于旧路径兼容；新代码优先 `import … from '../features/pressureTest'`。 |
 | **Prompt 占位** | 模板与版本号草案放在 **`src/config/pressureTestPrompts.js`**，与 `buildLiveLabSystemPrompt` 等现有调用解耦后再逐步接线。 |
-| **本地键** | 追问深度等仍使用现有 **`thinking-lab-pressure-depth`** 等键；若新增键，须同步 **`storageKeys.js`**、**`labDataSync.js`** 与本节。 |
+| **本地键** | 追问深度等仍使用现有 **`thinking-lab-pressure-depth`** 等键；**结构化压力会话列表** 使用 **`thinking-lab-pressure-engine-sessions`**（`STORAGE_KEYS.PRESSURE_ENGINE_SESSIONS`）。新增键须同步 **`storageKeys.js`**、**`labDataSync.js`** 与本节。 |
 | **与项目树** | 会话与文档归档策略以 PRD 为准；**当前**工作台演练消息仍走 Live Lab 与 `LabContext` 项目绑定，不在本节重复实现。 |
 
 ---
