@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useLab } from '../../context/LabContext'
+import ProgressCard from '../growthCoach/common/ProgressCard'
 
 const GOAL_KEY = 'thinking-lab-daily-goal-v1'
 
@@ -148,46 +149,50 @@ export default function RightInsightDeck({ className = '' }) {
         </div>
       </div>
 
-      <div
-        className="wb-card p-4 transition-shadow duration-200 hover:shadow-[var(--wb-shadow-card)]"
-        style={{ borderRadius: 'var(--wb-radius-lg)' }}
-      >
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--wb-text)' }}>
-          最近项目
-        </h3>
-        <ul className="mt-3 space-y-2">
-          {recent.map((p) => (
-            <li key={p.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  const target =
-                    labMode === 'archaeology'
-                      ? 'archaeology'
-                      : labMode === 'coach'
-                        ? 'coach'
-                        : labMode === 'live'
-                          ? 'live'
-                          : 'live'
-                  goProject(p.id, target)
-                }}
-                className="flex w-full cursor-pointer flex-col rounded-xl px-3 py-2.5 text-left transition-colors duration-200 hover:bg-[rgba(20,20,19,0.04)]"
-                style={{
-                  background:
-                    p.id === activeProjectId ? 'rgba(20, 20, 19, 0.055)' : 'transparent',
-                }}
-              >
-                <span className="truncate text-sm font-medium" style={{ color: 'var(--wb-text)' }}>
-                  {p.name}
-                </span>
-                <span className="mt-1 text-[11px]" style={{ color: 'var(--wb-muted)' }}>
-                  {updatedAgo(p.id)}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {labMode === 'coach' ? (
+        <ProgressCard />
+      ) : (
+        <div
+          className="wb-card p-4 transition-shadow duration-200 hover:shadow-[var(--wb-shadow-card)]"
+          style={{ borderRadius: 'var(--wb-radius-lg)' }}
+        >
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--wb-text)' }}>
+            最近项目
+          </h3>
+          <ul className="mt-3 space-y-2">
+            {recent.map((p) => (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target =
+                      labMode === 'archaeology'
+                        ? 'archaeology'
+                        : labMode === 'coach'
+                          ? 'coach'
+                          : labMode === 'live'
+                            ? 'live'
+                            : 'live'
+                    goProject(p.id, target)
+                  }}
+                  className="flex w-full cursor-pointer flex-col rounded-xl px-3 py-2.5 text-left transition-colors duration-200 hover:bg-[rgba(20,20,19,0.04)]"
+                  style={{
+                    background:
+                      p.id === activeProjectId ? 'rgba(20, 20, 19, 0.055)' : 'transparent',
+                  }}
+                >
+                  <span className="truncate text-sm font-medium" style={{ color: 'var(--wb-text)' }}>
+                    {p.name}
+                  </span>
+                  <span className="mt-1 text-[11px]" style={{ color: 'var(--wb-muted)' }}>
+                    {updatedAgo(p.id)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div
         className="wb-card p-4 transition-shadow duration-200 hover:shadow-[var(--wb-shadow-card)]"

@@ -1,11 +1,22 @@
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { COMPETITIVE_ANALYSIS } from '../../../config/competitiveAnalysis'
 
 export default function L2MethodFrame({ onNext }) {
   const { L2, primaryMethodology, secondaryMethodology } = COMPETITIVE_ANALYSIS
+  const [expandedLayers, setExpandedLayers] = useState([])
+  const [selfTestRevealed, setSelfTestRevealed] = useState(false)
+
+  const toggleLayer = (id) => {
+    setExpandedLayers((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
+
   return (
     <div className="flex max-h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border border-lab-border-subtle bg-lab-overlay shadow-card">
       <div className="flex-shrink-0 border-b border-lab-border-subtle bg-lab-raised px-4 py-3">
-        <h3 className="font-display text-sm font-semibold text-lab-ink">L2 方法层 · 思考框架</h3>
+        <h3 className="font-display text-sm font-semibold text-lab-ink">L2 框架层 · 思考框架</h3>
         <p className="mt-0.5 text-[11px] text-lab-muted">
           主：{primaryMethodology.name} · 辅：{secondaryMethodology.name} · 约 5 分钟
         </p>
@@ -56,23 +67,88 @@ export default function L2MethodFrame({ onNext }) {
             </table>
           </div>
         </section>
+
+        {/* 翻卡式四视角 */}
         <section>
-          <h4 className="text-xs font-semibold text-lab-ink">四视角拆解（对照练习与评分）</h4>
+          <h4 className="text-xs font-semibold text-lab-ink">
+            四视角拆解 <span className="text-lab-faint font-normal">（点击展开）</span>
+          </h4>
           <ul className="mt-2 space-y-2 text-xs">
-            {L2.fourLayers.map((row) => (
-              <li key={row.layer} className="rounded-lg border border-lab-border-subtle bg-lab-raised px-3 py-2">
-                <div className="font-medium text-lab-ink">{row.layer}</div>
-                <div className="text-lab-muted">看什么：{row.look}</div>
-                <div className="text-lab-muted">核心问：{row.question}</div>
-                <div className="text-lab-muted">产出线索：{row.output}</div>
-              </li>
-            ))}
+            {L2.fourLayers.map((row) => {
+              const expanded = expandedLayers.includes(row.layer)
+              return (
+                <li key={row.layer} className="overflow-hidden rounded-lg border border-lab-border-subtle">
+                  <button
+                    type="button"
+                    onClick={() => toggleLayer(row.layer)}
+                    className="flex w-full items-center justify-between gap-2 bg-lab-raised px-3 py-2 text-left font-medium text-lab-ink hover:bg-lab-accent-dim transition-colors"
+                  >
+                    <span>{row.layer}</span>
+                    <span className="text-[10px] text-lab-muted">{expanded ? '▲ 收起' : '▼ 展开'}</span>
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {expanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden border-t border-lab-border-subtle"
+                      >
+                        <div className="space-y-1.5 p-3 text-xs leading-relaxed text-lab-ink">
+                          <div className="text-lab-muted">看什么：{row.look}</div>
+                          <div className="text-lab-muted">核心问：{row.question}</div>
+                          <div className="text-lab-muted">产出线索：{row.output}</div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </li>
+              )
+            })}
           </ul>
         </section>
+
+        {/* 自测区块 */}
+        {L2.selfTest && (
+          <section className="rounded-lg border border-[var(--color-brand-blue)]/30 bg-[var(--color-brand-blue)]/5 p-3">
+            <h4 className="text-xs font-semibold text-[var(--color-brand-blue)]">
+              {L2.selfTest.title} <span className="text-lab-faint font-normal">（选填，不评分）</span>
+            </h4>
+            <p className="mt-1.5 text-xs text-lab-ink">{L2.selfTest.question}</p>
+            {!selfTestRevealed ? (
+              <button
+                type="button"
+                onClick={() => setSelfTestRevealed(true)}
+                className="mt-2 rounded-md border border-lab-border-subtle px-3 py-1 text-[11px] text-lab-muted hover:bg-lab-accent-dim"
+              >
+                【显示答案】
+              </button>
+            ) : (
+              <AnimatePresence>
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  transition={{ duration: 0.25 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-2 rounded-md bg-lab-overlay px-3 py-2 text-xs text-lab-ink ring-1 ring-lab-border-subtle">
+                    {L2.selfTest.answerReveal}
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            )}
+          </section>
+        )}
       </div>
+
       <div className="flex-shrink-0 border-t border-lab-border-subtle p-4">
-        <button type="button" onClick={onNext} className="w-full rounded-lab py-2.5 text-sm font-medium lab-btn-primary font-sans">
-          下一步：操作层（L3）
+        <button
+          type="button"
+          onClick={onNext}
+          className="w-full rounded-lab py-2.5 text-sm font-medium lab-btn-primary font-sans"
+        >
+          下一步：工具包（L3）
         </button>
       </div>
     </div>

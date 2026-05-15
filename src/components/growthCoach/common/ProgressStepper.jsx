@@ -1,9 +1,9 @@
 const STEPS = [
   { id: 1, label: '概念', hint: 'L1' },
-  { id: 2, label: '方法', hint: 'L2' },
-  { id: 3, label: '操作', hint: 'L3' },
-  { id: 4, label: '案例', hint: 'L4' },
-  { id: 5, label: '练习', hint: 'L5' },
+  { id: 2, label: '框架', hint: 'L2' },
+  { id: 3, label: '工具包', hint: 'L3' },
+  { id: 4, label: '跟练', hint: 'L4' },
+  { id: 5, label: '实战', hint: 'L5' },
 ]
 
 /**

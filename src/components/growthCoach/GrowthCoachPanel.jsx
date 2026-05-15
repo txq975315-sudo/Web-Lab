@@ -8,17 +8,18 @@ import { augmentSystemPromptWithTerminology } from '../../utils/aiTerminologyPre
 import { recordCoachSession, getTemplateAttempts } from '../../utils/growthCoachStore'
 import { growthCoachL5StorageKey } from '../../hooks/useExercise'
 import AIFeedbackPanel from './AIFeedbackPanel'
-import ProgressStepper from './common/ProgressStepper'
 import L1ConceptCard from './coach/L1ConceptCard'
 import L2MethodFrame from './coach/L2MethodFrame'
 import L3OperationChecklist from './coach/L3OperationChecklist'
-import L4CaseStudy from './coach/L4CaseStudy'
+import L4CoachWalkthrough from './coach/L4CoachWalkthrough'
 import L5ExercisePanel from './coach/L5ExercisePanel'
 import MockInterviewModal from './feedback/MockInterviewModal'
+import PathSelectorModal from './coach/PathSelectorModal'
+import IndependentPracticePanel from './coach/IndependentPracticePanel'
 
 const P0_TEMPLATE = 'competitive_analysis'
 
-/** @typedef {'intro'|1|2|3|4|5|'feedback'} CoachStep */
+/** @typedef {'intro'|1|2|3|4|'pathSelect'|'projectMode'|'independentMode'|5|'feedback'} CoachStep */
 
 function emptyFields() {
   return {
@@ -66,6 +67,10 @@ export default function GrowthCoachPanel() {
   const [mockInterviewOpen, setMockInterviewOpen] = useState(false)
   const [mockSessionKey, setMockSessionKey] = useState(0)
 
+  // 双路径状态
+  const [selectedProducts, setSelectedProducts] = useState([])
+  const [practiceMode, setPracticeMode] = useState(null) // 'project' | 'independent'
+
   const attemptNumber = getTemplateAttempts(P0_TEMPLATE)
 
   useEffect(() => {
@@ -73,6 +78,14 @@ export default function GrowthCoachPanel() {
       setMaxReached((m) => Math.max(m, step))
     }
   }, [step])
+
+  // 将当前步骤同步到 localStorage（供右侧边栏 ProgressCard 读取）
+  useEffect(() => {
+    try {
+      localStorage.setItem('growthCoach_current_step', JSON.stringify(step))
+      localStorage.setItem('growthCoach_current_maxReached', String(maxReached))
+    } catch { /* ignore */ }
+  }, [step, maxReached])
 
   const resetRound = useCallback(() => {
     setStep('intro')
@@ -83,6 +96,8 @@ export default function GrowthCoachPanel() {
     setFeedback(null)
     setLastHintCounts({})
     setMockInterviewOpen(false)
+    setSelectedProducts([])
+    setPracticeMode(null)
   }, [])
 
   useEffect(() => {
@@ -91,7 +106,17 @@ export default function GrowthCoachPanel() {
     ;(async () => {
       setExerciseLoading(true)
       try {
-        const userPrompt = prompts.buildExerciseScenarioPrompt(projectName, methodologyName, attemptNumber)
+        let userPrompt
+        if (practiceMode === 'independent' && selectedProducts.length > 0) {
+          // 独立训练模式
+          userPrompt = prompts.buildExerciseScenarioPrompt(
+            selectedProducts.map((p) => p.name).join(' vs '),
+            methodologyName,
+            attemptNumber
+          )
+        } else {
+          userPrompt = prompts.buildExerciseScenarioPrompt(projectName, methodologyName, attemptNumber)
+        }
         const text = await chatComplete([
           { role: 'system', content: augmentSystemPromptWithTerminology(prompts.SYSTEM_JSON_PUBLIC_GROUNDING) },
           { role: 'user', content: userPrompt },
@@ -201,9 +226,6 @@ export default function GrowthCoachPanel() {
     setFieldValues(emptyFields())
   }
 
-  const showStepper = step !== 'intro'
-  const stepperPhase = step
-
   return (
     <div className="wb-lab-bridge relative flex min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden pb-4 pt-3">
@@ -222,23 +244,6 @@ export default function GrowthCoachPanel() {
               {methodology?.hook && ` — ${methodology.hook}`}
             </p>
           </div>
-
-          {showStepper && (
-            <div className="flex-shrink-0 px-6 md:px-8">
-              <ProgressStepper
-                phase={stepperPhase}
-                maxReached={maxReached}
-                onJump={
-                  step === 'feedback'
-                    ? undefined
-                    : (id) => {
-                        setFeedback(null)
-                        setStep(id)
-                      }
-                }
-              />
-            </div>
-          )}
 
           <div className="min-h-0 w-full flex-1 overflow-y-auto px-6 pb-4 md:px-8">
             {step === 'intro' && (
@@ -272,7 +277,29 @@ export default function GrowthCoachPanel() {
             )}
 
             {step === 4 && (
-              <L4CaseStudy onNext={() => setStep(5)} onPrev={() => setStep(3)} />
+              <L4CoachWalkthrough onNext={() => setStep('pathSelect')} />
+            )}
+
+            {step === 'pathSelect' && (
+              <PathSelectorModal
+                projectName={projectName}
+                hasProject={activeProjectId != null}
+                onSelectProjectMode={() => {
+                  setPracticeMode('project')
+                  setStep(5)
+                }}
+                onSelectIndependentMode={() => setStep('independentMode')}
+              />
+            )}
+
+            {step === 'independentMode' && (
+              <IndependentPracticePanel
+                onConfirm={(products) => {
+                  setSelectedProducts(products)
+                  setPracticeMode('independent')
+                  setStep(5)
+                }}
+              />
             )}
 
             {step === 5 && (

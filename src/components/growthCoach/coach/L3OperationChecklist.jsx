@@ -68,14 +68,14 @@ export default function L3OperationChecklist({ onNext, onSkipToCase }) {
       </div>
       <div className="flex-shrink-0 space-y-2 border-t border-lab-border-subtle p-4">
         <button type="button" onClick={onNext} className="w-full rounded-lab py-2.5 text-sm font-medium lab-btn-primary font-sans">
-          下一步：案例层（L4）
+          我已准备好工具，开始跟练 →
         </button>
         <button
           type="button"
           onClick={onSkipToCase}
           className="w-full rounded-lab border border-lab-border-subtle py-2 text-xs text-lab-muted hover:bg-lab-accent-dim hover:text-lab-accent-warm"
         >
-          跳过，直接看案例（L4）
+          跳过准备，直接跟练
         </button>
       </div>
     </div>

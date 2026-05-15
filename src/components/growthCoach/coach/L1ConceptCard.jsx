@@ -39,7 +39,7 @@ export default function L1ConceptCard({ onNext }) {
       </div>
       <div className="flex-shrink-0 border-t border-lab-border-subtle p-4">
         <button type="button" onClick={onNext} className="w-full rounded-lab py-2.5 text-sm font-medium lab-btn-primary font-sans">
-          下一步：方法层（L2）
+          理解了，下一步 → L2 框架
         </button>
       </div>
     </div>
