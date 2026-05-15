@@ -2,6 +2,7 @@ import { loadSkillProgress } from '../../utils/growthCoachStore'
 import { METHODOLOGY_ORDER, METHODOLOGY_CONFIG } from '../../config/methodology'
 import { archaeologyStore } from '../../utils/dataStore'
 import PressureSessionHistoryPanel from '../../features/pressureTest/PressureSessionHistoryPanel.jsx'
+import HypothesisSessionHistoryPanel from '../../features/businessHypothesis/HypothesisSessionHistoryPanel.jsx'
 
 export function RadarPanelBody({ transparent }) {
   const skill = loadSkillProgress()
@@ -85,6 +86,7 @@ export const WORKBENCH_MIDDLE_TOOL_TITLES = {
   recommend: '智能推荐',
   archaeology: '历史对话考古',
   practice: '历史压力练习',
+  'hypothesis-practice': '历史假设构建',
   learning: '历史成长教学',
 }
 
@@ -111,6 +113,17 @@ export function WorkbenchToolPaneContent({ tool, transparent = true, pressureHis
   if (tool === 'practice') {
     return (
       <PressureSessionHistoryPanel
+        transparent={transparent}
+        activeRunnerId={pressureHistory?.activeRunnerId ?? null}
+        onView={pressureHistory?.onView}
+        onContinue={pressureHistory?.onContinue}
+        onAfterDelete={pressureHistory?.onAfterDelete}
+      />
+    )
+  }
+  if (tool === 'hypothesis-practice') {
+    return (
+      <HypothesisSessionHistoryPanel
         transparent={transparent}
         activeRunnerId={pressureHistory?.activeRunnerId ?? null}
         onView={pressureHistory?.onView}

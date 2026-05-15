@@ -27,5 +27,9 @@ export const STORAGE_KEYS = Object.freeze({
   /** 压力测试引擎：结构化会话（9 问 + 拆解 + 盲区快照） */
   PRESSURE_ENGINE_SESSIONS: 'thinking-lab-pressure-engine-sessions',
   /** 压力引擎 Layer1/Layer2 抽检与运维日志（环形 JSON 数组，见 pressureEvalLog.js） */
-  PRESSURE_ENGINE_EVAL_LOG: 'thinking-lab-pressure-engine-eval-log'
+  PRESSURE_ENGINE_EVAL_LOG: 'thinking-lab-pressure-engine-eval-log',
+  /** 商业假设构建器：结构化会话（8 问 + 商业假设画布） */
+  HYPOTHESIS_ENGINE_SESSIONS: 'thinking-lab-hypothesis-sessions',
+  /** 商业假设构建器 Layer1/Layer2 抽检与运维日志 */
+  HYPOTHESIS_ENGINE_EVAL_LOG: 'thinking-lab-hypothesis-eval-log'
 })

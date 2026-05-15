@@ -452,6 +452,9 @@ export function LabProvider({ children }) {
   /** 从「历史压力练习」打开会话：切到 live 后由 LabPanel 消费 { sessionId, mode } */
   const pressureResumePayloadRef = useRef(/** @type {{ sessionId: string, mode: 'view' | 'practice' } | null} */ (null))
   const [pressureWorkbenchActiveSessionId, setPressureWorkbenchActiveSessionId] = useState(/** @type {string|null} */ (null))
+  /** 从「历史假设构建」打开会话 */
+  const hypothesisResumePayloadRef = useRef(/** @type {{ sessionId: string, mode: 'view' | 'practice' } | null} */ (null))
+  const [hypothesisWorkbenchActiveSessionId, setHypothesisWorkbenchActiveSessionId] = useState(/** @type {string|null} */ (null))
   const [viewingHistorySessionId, setViewingHistorySessionId] = useState(null)
   const [documentConflicts, setDocumentConflicts] = useState({})
   const [labMessageToSend, setLabMessageToSend] = useState(null)
@@ -1004,6 +1007,28 @@ export function LabProvider({ children }) {
     return p
   }, [])
 
+  const continueHypothesisSession = useCallback(
+    (sessionId) => {
+      hypothesisResumePayloadRef.current = { sessionId, mode: 'practice' }
+      switchLabMode('live')
+    },
+    [switchLabMode]
+  )
+
+  const viewHypothesisSession = useCallback(
+    (sessionId) => {
+      hypothesisResumePayloadRef.current = { sessionId, mode: 'view' }
+      switchLabMode('live')
+    },
+    [switchLabMode]
+  )
+
+  const consumeHypothesisSessionResume = useCallback(() => {
+    const p = hypothesisResumePayloadRef.current
+    hypothesisResumePayloadRef.current = null
+    return p
+  }, [])
+
   // 向后兼容：添加缺失的方法作为空实现
   const createArchaeologySession = useCallback((text) => {
     const session = {
@@ -1232,6 +1257,11 @@ export function LabProvider({ children }) {
     consumePressureSessionResume,
     pressureWorkbenchActiveSessionId,
     setPressureWorkbenchActiveSessionId,
+    hypothesisWorkbenchActiveSessionId,
+    setHypothesisWorkbenchActiveSessionId,
+    continueHypothesisSession,
+    viewHypothesisSession,
+    consumeHypothesisSessionResume,
     setActiveHeadingId,
     
     // 新增的向后兼容方法

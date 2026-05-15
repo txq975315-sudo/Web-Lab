@@ -7,6 +7,10 @@ import PressureTestWorkbench from '../features/pressureTest'
 import PressureSessionRunner from '../features/pressureTest/PressureSessionRunner.jsx'
 import PressureSessionInlineViewer from '../features/pressureTest/PressureSessionInlineViewer.jsx'
 import { createPressureSession } from '../features/pressureTest/pressureSessionStore.js'
+import HypothesisWorkbench from '../features/businessHypothesis'
+import HypothesisSessionRunner from '../features/businessHypothesis/HypothesisSessionRunner.jsx'
+import HypothesisSessionInlineViewer from '../features/businessHypothesis/HypothesisSessionInlineViewer.jsx'
+import { createHypothesisSession } from '../features/businessHypothesis/hypothesisStore.js'
 import WorkbenchMiddleToolColumn from './workbench/WorkbenchMiddleToolColumn'
 import ModuleSegmentedControl from './workbench/ModuleSegmentedControl'
 import ArchivePanel from './ArchivePanel'
@@ -51,11 +55,23 @@ export default function LabPanel({
     setCurrentSessionId,
     setPressureWorkbenchActiveSessionId,
     consumePressureSessionResume,
+    hypothesisWorkbenchActiveSessionId,
+    setHypothesisWorkbenchActiveSessionId,
+    continueHypothesisSession,
+    viewHypothesisSession,
+    consumeHypothesisSessionResume,
   } = useLab()
   const [inputValue, setInputValue] = useState('')
   const [stressDraft, setStressDraft] = useState('')
   const [pressureRunnerSessionId, setPressureRunnerSessionId] = useState(/** @type {string|null} */ (null))
   const [pressureViewSessionId, setPressureViewSessionId] = useState(/** @type {string|null} */ (null))
+  const [liveSubMode, setLiveSubMode] = useState(() => {
+    try { return sessionStorage.getItem('thinking-lab-live-sub-mode') || 'pressure' }
+    catch { return 'pressure' }
+  })
+  const [hypothesisDraft, setHypothesisDraft] = useState('')
+  const [hypothesisRunnerSessionId, setHypothesisRunnerSessionId] = useState(/** @type {string|null} */ (null))
+  const [hypothesisViewSessionId, setHypothesisViewSessionId] = useState(/** @type {string|null} */ (null))
   const [messages, setMessages] = useState(() => LIVE_LAB_DEFAULT_SEED_MESSAGES.map((m) => ({ ...m })))
   const [selectionMenu, setSelectionMenu] = useState(null)
   const workbenchComposerRef = useRef(null)
@@ -168,18 +184,42 @@ export default function LabPanel({
     setPressureRunnerSessionId(pending.sessionId)
   }, [labMode, consumePressureSessionResume])
 
+  /** 从历史假设构建恢复会话 */
+  useEffect(() => {
+    if (labMode !== 'live') return
+    const pending = consumeHypothesisSessionResume()
+    if (!pending) return
+    setLiveSubMode('hypothesis')
+    if (pending.mode === 'view') {
+      setHypothesisViewSessionId(pending.sessionId)
+      return
+    }
+    setHypothesisViewSessionId(null)
+    setHypothesisRunnerSessionId(pending.sessionId)
+  }, [labMode, consumeHypothesisSessionResume])
+
   useEffect(() => {
     if (labMode === 'live') {
       setPressureWorkbenchActiveSessionId(pressureRunnerSessionId || pressureViewSessionId)
+      setHypothesisWorkbenchActiveSessionId(hypothesisRunnerSessionId || hypothesisViewSessionId)
     } else {
       setPressureWorkbenchActiveSessionId(null)
+      setHypothesisWorkbenchActiveSessionId(null)
     }
   }, [
     labMode,
     pressureRunnerSessionId,
     pressureViewSessionId,
+    hypothesisRunnerSessionId,
+    hypothesisViewSessionId,
     setPressureWorkbenchActiveSessionId,
+    setHypothesisWorkbenchActiveSessionId,
   ])
+
+  /** 持久化子模式选择 */
+  useEffect(() => {
+    try { sessionStorage.setItem('thinking-lab-live-sub-mode', liveSubMode) } catch { /* ignore */ }
+  }, [liveSubMode])
 
   /** 从持久化恢复当前会话消息（刷新/切项目后不再只剩演示三句）。勿依赖 allHistoryMessages 引用频繁重跑，以免打断流式输出。 */
   useEffect(() => {
@@ -262,15 +302,27 @@ export default function LabPanel({
                 pressureHistory={
                   labMode === 'live'
                     ? {
-                        activeRunnerId: pressureRunnerSessionId || pressureViewSessionId,
-                        onView: (id) => setPressureViewSessionId(id),
+                        activeRunnerId: liveSubMode === 'pressure'
+                          ? (pressureRunnerSessionId || pressureViewSessionId)
+                          : (hypothesisRunnerSessionId || hypothesisViewSessionId),
+                        onView: (id) => {
+                          if (liveSubMode === 'pressure') setPressureViewSessionId(id)
+                          else setHypothesisViewSessionId(id)
+                        },
                         onContinue: (id) => {
-                          setPressureViewSessionId(null)
-                          setPressureRunnerSessionId(id)
+                          if (liveSubMode === 'pressure') {
+                            setPressureViewSessionId(null)
+                            setPressureRunnerSessionId(id)
+                          } else {
+                            setHypothesisViewSessionId(null)
+                            setHypothesisRunnerSessionId(id)
+                          }
                         },
                         onAfterDelete: (id) => {
                           if (id === pressureRunnerSessionId) setPressureRunnerSessionId(null)
                           if (id === pressureViewSessionId) setPressureViewSessionId(null)
+                          if (id === hypothesisRunnerSessionId) setHypothesisRunnerSessionId(null)
+                          if (id === hypothesisViewSessionId) setHypothesisViewSessionId(null)
                         },
                       }
                     : null
@@ -343,11 +395,46 @@ export default function LabPanel({
               </>
             )}
 
+            {labMode === 'live' && hypothesisViewSessionId && (
+              <>
+                <div
+                  className="wb-live-pressure-view-inline flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg bg-transparent"
+                  style={{
+                    flex: '1 1 auto',
+                    minWidth: wbInlinePressureViewWidth,
+                    maxWidth: 560,
+                    border: '1px solid rgba(15, 23, 42, 0.09)',
+                  }}
+                >
+                  <HypothesisSessionInlineViewer
+                    sessionId={hypothesisViewSessionId}
+                    onClose={() => setHypothesisViewSessionId(null)}
+                    onEnterPractice={(id) => {
+                      setHypothesisViewSessionId(null)
+                      setHypothesisRunnerSessionId(id)
+                    }}
+                  />
+                </div>
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="拖动调整假设构建查看区宽度"
+                  onMouseDown={onWbPressureViewResizePointerDown}
+                  className="wb-live-pressure-view-separator group relative w-2 shrink-0 cursor-col-resize select-none touch-none"
+                >
+                  <div
+                    className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-[rgba(15,23,42,0.12)] transition-colors group-hover:bg-[var(--color-accent-orange)]"
+                    aria-hidden
+                  />
+                </div>
+              </>
+            )}
+
             {/* 主列：三模式共享 wb-pressure-dialog + 滑动切换 */}
             <div
               className="wb-pressure-main-column flex min-h-0 min-w-0 flex-col pb-3 pl-1 pr-3 pt-0 md:pb-4 md:pl-2 md:pr-5"
               style={
-                (labMode === 'live' && (activeDocId || pressureViewSessionId))
+                (labMode === 'live' && (activeDocId || pressureViewSessionId || hypothesisViewSessionId))
                   ? { flex: '0 1 min(65%, 56rem)', minWidth: 0 }
                   : { flex: '1 1 65%', minWidth: 0 }
               }
@@ -367,40 +454,103 @@ export default function LabPanel({
                       }%)`,
                     }}
                   >
-                    {/* 面板 0：压力测试（练） */}
+                    {/* 面板 0：压力测试 / 假设构建（练） */}
                     <div className="wb-slide-panel">
                       {labMode === 'live' && (
-                        pressureRunnerSessionId ? (
-                          <PressureSessionRunner
-                            sessionId={pressureRunnerSessionId}
-                            onExit={() => setPressureRunnerSessionId(null)}
-                            onRestart={() => {
-                              setPressureRunnerSessionId(null)
-                            }}
-                            onOpenGrowthCoach={() => {
-                              switchLabMode('coach')
-                              setPressureRunnerSessionId(null)
-                            }}
-                          />
-                        ) : (
-                          <div className="wb-pressure-dialog-guide-scroll min-h-0 flex-1">
-                            <div className="wb-pressure-dialog-guide-inner wb-thread w-full px-4 py-4 md:px-6">
-                              <PressureTestWorkbench
-                                draftValue={stressDraft}
-                                setDraftValue={setStressDraft}
-                                disabled={false}
-                                onSubmit={() => {
-                                  if (!stressDraft.trim()) return
-                                  onPressureTestStart?.()
-                                  const id = createPressureSession(stressDraft.trim())
-                                  setPressureViewSessionId(null)
-                                  setPressureRunnerSessionId(id)
-                                  setStressDraft('')
+                        <>
+                          {/* 子模式切换 */}
+                          <div className="flex shrink-0 items-center gap-1.5 px-4 pt-3 pb-2 md:px-6">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLiveSubMode('pressure')
+                                setHypothesisViewSessionId(null)
+                                setHypothesisRunnerSessionId(null)
+                              }}
+                              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                                liveSubMode === 'pressure'
+                                  ? 'bg-white/80 text-[var(--wb-text)] shadow-sm'
+                                  : 'text-[var(--wb-muted)] hover:bg-white/40'
+                              }`}
+                            >
+                              压力测试
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLiveSubMode('hypothesis')
+                                setPressureViewSessionId(null)
+                                setPressureRunnerSessionId(null)
+                              }}
+                              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                                liveSubMode === 'hypothesis'
+                                  ? 'bg-white/80 text-[var(--wb-text)] shadow-sm'
+                                  : 'text-[var(--wb-muted)] hover:bg-white/40'
+                              }`}
+                            >
+                              假设构建
+                            </button>
+                          </div>
+
+                          {liveSubMode === 'pressure' ? (
+                            pressureRunnerSessionId ? (
+                              <PressureSessionRunner
+                                sessionId={pressureRunnerSessionId}
+                                onExit={() => setPressureRunnerSessionId(null)}
+                                onRestart={() => {
+                                  setPressureRunnerSessionId(null)
+                                }}
+                                onOpenGrowthCoach={() => {
+                                  switchLabMode('coach')
+                                  setPressureRunnerSessionId(null)
                                 }}
                               />
+                            ) : (
+                              <div className="wb-pressure-dialog-guide-scroll min-h-0 flex-1">
+                                <div className="wb-pressure-dialog-guide-inner wb-thread w-full px-4 py-4 md:px-6">
+                                  <PressureTestWorkbench
+                                    draftValue={stressDraft}
+                                    setDraftValue={setStressDraft}
+                                    disabled={false}
+                                    onSubmit={() => {
+                                      if (!stressDraft.trim()) return
+                                      onPressureTestStart?.()
+                                      const id = createPressureSession(stressDraft.trim())
+                                      setPressureViewSessionId(null)
+                                      setPressureRunnerSessionId(id)
+                                      setStressDraft('')
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            )
+                          ) : hypothesisRunnerSessionId ? (
+                            <HypothesisSessionRunner
+                              sessionId={hypothesisRunnerSessionId}
+                              onExit={() => setHypothesisRunnerSessionId(null)}
+                              onRestart={() => {
+                                setHypothesisRunnerSessionId(null)
+                              }}
+                            />
+                          ) : (
+                            <div className="wb-pressure-dialog-guide-scroll min-h-0 flex-1">
+                              <div className="wb-pressure-dialog-guide-inner wb-thread w-full px-4 py-4 md:px-6">
+                                <HypothesisWorkbench
+                                  draftValue={hypothesisDraft}
+                                  setDraftValue={setHypothesisDraft}
+                                  disabled={false}
+                                  onSubmit={() => {
+                                    if (!hypothesisDraft.trim()) return
+                                    const id = createHypothesisSession(hypothesisDraft.trim())
+                                    setHypothesisViewSessionId(null)
+                                    setHypothesisRunnerSessionId(id)
+                                    setHypothesisDraft('')
+                                  }}
+                                />
+                              </div>
                             </div>
-                          </div>
-                        )
+                          )}
+                        </>
                       )}
                     </div>
 
