@@ -67,7 +67,7 @@ function updatedAgo(projectId) {
 }
 
 function coachTip() {
-  return '每一练先锁定场景与用户，再落到模板字段；提交后会给出维度分与盲区，方便回填到项目树。'
+  return '「学」走 L1→L5：概念、方法、操作、Forest 案例，再逐字段练习；十分制评分后可去「练」里追问。先点主区「开始学习」。'
 }
 
 function liveTip() {

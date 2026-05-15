@@ -6,11 +6,19 @@ import { getMethodologyForTemplate } from '../../config/methodology'
 import * as prompts from '../../config/growthCoachPrompts'
 import { augmentSystemPromptWithTerminology } from '../../utils/aiTerminologyPreference.js'
 import { recordCoachSession, getTemplateAttempts } from '../../utils/growthCoachStore'
-import KnowledgeCard from './KnowledgeCard'
-import ExerciseForm from './ExerciseForm'
+import { growthCoachL5StorageKey } from '../../hooks/useExercise'
 import AIFeedbackPanel from './AIFeedbackPanel'
+import ProgressStepper from './common/ProgressStepper'
+import L1ConceptCard from './coach/L1ConceptCard'
+import L2MethodFrame from './coach/L2MethodFrame'
+import L3OperationChecklist from './coach/L3OperationChecklist'
+import L4CaseStudy from './coach/L4CaseStudy'
+import L5ExercisePanel from './coach/L5ExercisePanel'
+import MockInterviewModal from './feedback/MockInterviewModal'
 
 const P0_TEMPLATE = 'competitive_analysis'
+
+/** @typedef {'intro'|1|2|3|4|5|'feedback'} CoachStep */
 
 function emptyFields() {
   return {
@@ -23,7 +31,7 @@ function emptyFields() {
     assurance: '',
     lifeCycle: '',
     social: '',
-    ourAdvantage: ''
+    ourAdvantage: '',
   }
 }
 
@@ -35,18 +43,17 @@ export default function GrowthCoachPanel() {
     switchExpertMode,
     setLabMessageToSend,
     setAutoSendLabMessage,
-    startNewSession
+    startNewSession,
   } = useLab()
 
-  const project = projectTree.find(p => p.id === activeProjectId)
+  const project = projectTree.find((p) => p.id === activeProjectId)
   const projectName = project?.name || '当前项目'
   const methodology = getMethodologyForTemplate(P0_TEMPLATE)
   const methodologyName = methodology?.name || '多维拆解法'
 
+  /** @type {[CoachStep, React.Dispatch<React.SetStateAction<CoachStep>>]} */
   const [step, setStep] = useState('intro')
-  const [cardLoading, setCardLoading] = useState(false)
-  const [cardError, setCardError] = useState(null)
-  const [cardData, setCardData] = useState(null)
+  const [maxReached, setMaxReached] = useState(0)
 
   const [exerciseLoading, setExerciseLoading] = useState(false)
   const [scenario, setScenario] = useState('')
@@ -55,47 +62,31 @@ export default function GrowthCoachPanel() {
 
   const [scoreLoading, setScoreLoading] = useState(false)
   const [feedback, setFeedback] = useState(null)
+  const [lastHintCounts, setLastHintCounts] = useState({})
+  const [mockInterviewOpen, setMockInterviewOpen] = useState(false)
+  const [mockSessionKey, setMockSessionKey] = useState(0)
 
   const attemptNumber = getTemplateAttempts(P0_TEMPLATE)
 
+  useEffect(() => {
+    if (typeof step === 'number') {
+      setMaxReached((m) => Math.max(m, step))
+    }
+  }, [step])
+
   const resetRound = useCallback(() => {
     setStep('intro')
-    setCardData(null)
-    setCardError(null)
+    setMaxReached(0)
     setScenario('')
     setPrefillHint('')
     setFieldValues(emptyFields())
     setFeedback(null)
+    setLastHintCounts({})
+    setMockInterviewOpen(false)
   }, [])
 
   useEffect(() => {
-    if (step !== 'card' || cardData) return
-    let cancelled = false
-    ;(async () => {
-      setCardLoading(true)
-      setCardError(null)
-      try {
-        const userPrompt = prompts.buildKnowledgeCardPrompt(projectName, methodologyName)
-        const text = await chatComplete([
-          { role: 'system', content: augmentSystemPromptWithTerminology(prompts.SYSTEM_JSON_PUBLIC_GROUNDING) },
-          { role: 'user', content: userPrompt }
-        ])
-        if (cancelled) return
-        const json = extractJsonBlock(text)
-        setCardData(json)
-      } catch (e) {
-        if (!cancelled) setCardError(e.message || String(e))
-      } finally {
-        if (!cancelled) setCardLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [step, cardData, projectName, methodologyName])
-
-  useEffect(() => {
-    if (step !== 'exercise' || scenario) return
+    if (step !== 5 || scenario) return
     let cancelled = false
     ;(async () => {
       setExerciseLoading(true)
@@ -103,14 +94,14 @@ export default function GrowthCoachPanel() {
         const userPrompt = prompts.buildExerciseScenarioPrompt(projectName, methodologyName, attemptNumber)
         const text = await chatComplete([
           { role: 'system', content: augmentSystemPromptWithTerminology(prompts.SYSTEM_JSON_PUBLIC_GROUNDING) },
-          { role: 'user', content: userPrompt }
+          { role: 'user', content: userPrompt },
         ])
         if (cancelled) return
         const json = extractJsonBlock(text)
         setScenario(json.scenario || '')
         setPrefillHint(json.prefillHint || '')
         const raw = json.fields || {}
-        setFieldValues(prev => ({ ...emptyFields(), ...prev, ...raw }))
+        setFieldValues((prev) => ({ ...emptyFields(), ...prev, ...raw }))
       } catch (e) {
         if (!cancelled) {
           setScenario('场景生成失败，请检查 API Key 后点击「重新生成场景」。')
@@ -125,25 +116,47 @@ export default function GrowthCoachPanel() {
     }
   }, [step, scenario, projectName, methodologyName, attemptNumber])
 
-  const handleFieldChange = (key, value) => {
-    setFieldValues(prev => ({ ...prev, [key]: value }))
-  }
-
-  const handleSubmitExercise = async () => {
+  const handleSubmitExercise = async (submitPayload) => {
+    const payload =
+      submitPayload &&
+      typeof submitPayload === 'object' &&
+      !Array.isArray(submitPayload) &&
+      submitPayload.answers
+        ? submitPayload.answers
+        : submitPayload || fieldValues
+    const hintCountsByField =
+      submitPayload &&
+      typeof submitPayload === 'object' &&
+      submitPayload.hintCountsByField &&
+      typeof submitPayload.hintCountsByField === 'object'
+        ? submitPayload.hintCountsByField
+        : {}
+    setLastHintCounts(hintCountsByField)
+    setFieldValues(payload)
     setScoreLoading(true)
     try {
       const userPrompt = prompts.buildScoreExercisePrompt(
         scenario,
-        JSON.stringify(fieldValues, null, 0),
-        methodologyName
+        JSON.stringify(payload, null, 0),
+        methodologyName,
+        hintCountsByField
       )
       const text = await chatComplete([
         { role: 'system', content: augmentSystemPromptWithTerminology(prompts.SYSTEM_JSON_PUBLIC_GROUNDING) },
-        { role: 'user', content: userPrompt }
+        { role: 'user', content: userPrompt },
       ])
       const json = extractJsonBlock(text)
       setFeedback(json)
-      recordCoachSession(P0_TEMPLATE, 'multi_dimensional', Number(json.overallScore) || 0)
+      const usesRubric =
+        json.rubricScores && typeof json.rubricScores.fourDimensionsCompleteness === 'number'
+      recordCoachSession(P0_TEMPLATE, 'multi_dimensional', Number(json.overallScore) || 0, {
+        maxScore: usesRubric ? 10 : 5,
+      })
+      try {
+        sessionStorage.removeItem(growthCoachL5StorageKey(activeProjectId))
+      } catch {
+        /* ignore */
+      }
       setStep('feedback')
     } catch (e) {
       alert(e.message || String(e))
@@ -155,12 +168,18 @@ export default function GrowthCoachPanel() {
   const handleGoLive = () => {
     if (!feedback) return
     const keys = Object.keys(emptyFields())
-    const userSummary = keys.map(k => `${k}: ${(fieldValues[k] || '').slice(0, 120)}`).join('\n')
+    const userSummary = keys.map((k) => `${k}: ${(fieldValues[k] || '').slice(0, 120)}`).join('\n')
+    const rubric = feedback.rubricScores
+    const rubricLine =
+      rubric && typeof rubric.fourDimensionsCompleteness === 'number'
+        ? `分项：四维度完整性 ${rubric.fourDimensionsCompleteness}/4，深度 ${rubric.answerDepth}/4，洞察 ${rubric.differentiationInsight}/2。薄弱项：${(feedback.weakestAspects || []).join('、') || '—'}。`
+        : ''
+    const usesRubric = rubric && typeof rubric.fourDimensionsCompleteness === 'number'
     const msg = prompts.buildCoachHandoffMessage({
       projectName,
       scenario,
       userFieldsSummary: userSummary,
-      feedbackSummary: `总分 ${feedback.overallScore}。${feedback.blindSpot || ''}`
+      feedbackSummary: `总分 ${feedback.overallScore}/${usesRubric ? 10 : 5}。${rubricLine}${feedback.blindSpot || ''}`,
     })
     startNewSession()
     switchExpertMode('guided')
@@ -172,108 +191,152 @@ export default function GrowthCoachPanel() {
   }
 
   const regenerateScenario = () => {
+    try {
+      sessionStorage.removeItem(growthCoachL5StorageKey(activeProjectId))
+    } catch {
+      /* ignore */
+    }
     setScenario('')
     setPrefillHint('')
     setFieldValues(emptyFields())
   }
 
+  const showStepper = step !== 'intro'
+  const stepperPhase = step
+
   return (
-    <div className="wb-lab-bridge relative flex min-h-0 flex-col overflow-hidden">
+    <div className="wb-lab-bridge relative flex min-h-0 w-full min-w-0 flex-col overflow-hidden">
+      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden pb-4 pt-3">
+        {/*
+          不在此层再套 .wb-thread：外层 LabPanel 的 guide-inner 已是 wb-thread，避免双窄栏+错位感
+        */}
+        <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="mb-1 flex-shrink-0 px-6 md:px-8">
+            <h2 className="font-display text-base font-semibold text-lab-ink">成长教练 · P0</h2>
+            <p className="mt-1 text-xs text-lab-muted">
+              模板：<span className="font-medium text-lab-ink">竞品分析（{P0_TEMPLATE}）</span>
+              {' · '}
+              方法论：<span className="font-medium" style={{ color: 'var(--color-accent-blue)' }}>
+                {methodologyName}
+              </span>
+              {methodology?.hook && ` — ${methodology.hook}`}
+            </p>
+          </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4 pt-3">
-        <div className="wb-thread flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="mb-3 flex-shrink-0 px-6 md:px-8">
-          <h2 className="font-display text-base font-semibold text-lab-ink">成长教练 · P0</h2>
-          <p className="mt-1 text-xs text-lab-muted">
-            模板：<span className="font-medium text-lab-ink">竞品分析（{P0_TEMPLATE}）</span>
-            {' · '}
-            方法论：<span className="font-medium" style={{ color: 'var(--color-accent-blue)' }}>{methodologyName}</span>
-            {methodology?.hook && ` — ${methodology.hook}`}
-          </p>
-        </div>
-
-        <div className="min-h-0 w-full flex-1 overflow-y-auto">
-          {step === 'intro' && (
-            <div className="w-full rounded-xl border border-lab-border-subtle bg-lab-overlay p-6 shadow-card md:p-8">
-              <p className="text-sm leading-relaxed text-lab-ink font-body">
-                本轮将走通：<strong>知识卡片 → 场景练习 → AI 评分 → 右侧实时演练追问</strong>
-                。内容会要求结合<strong>公开可查</strong>的行业事实、媒体报道与真实成败案例来理解 $APPEALS（模型无法实时上网，具体数字与引用请你务必自行交叉验证）。
-                请先确认右上角已配置 API Key。
-              </p>
-              <p className="mt-3 text-sm leading-relaxed text-lab-muted font-body">
-                <strong className="text-lab-ink">和左侧项目的关系：</strong>
-                知识卡片里的真实案例、方法论，是在教<strong>通用打法</strong>，与左侧当前选哪个项目<strong>没有硬性绑定</strong>，你可以先当「行业课」来读。
-                进入<strong>场景练习</strong>后，题目正文里的<strong>己方</strong>应与<strong>左侧当前项目同名</strong>，<strong>竞品</strong>为 AI 指定的<strong>真实品牌</strong>——这样是在练框架：己方哪怕是早期概念名也可以。
-                完成一轮后可点<strong>「再来一轮」</strong>或练习里的<strong>「重新生成场景」</strong>换题继续练；不限一局。
-              </p>
-              <button
-                type="button"
-                onClick={() => setStep('card')}
-                className="mt-6 w-full rounded-lab py-2.5 text-sm font-medium lab-btn-primary font-sans"
-              >
-                开始：生成知识卡片
-              </button>
-            </div>
-          )}
-
-          {step === 'card' && (
-            <div className="w-full">
-              <KnowledgeCard
-                data={cardData}
-                loading={cardLoading}
-                error={cardError}
-                ownProductName={projectName}
-                onContinue={() => setStep('exercise')}
+          {showStepper && (
+            <div className="flex-shrink-0 px-6 md:px-8">
+              <ProgressStepper
+                phase={stepperPhase}
+                maxReached={maxReached}
+                onJump={
+                  step === 'feedback'
+                    ? undefined
+                    : (id) => {
+                        setFeedback(null)
+                        setStep(id)
+                      }
+                }
               />
             </div>
           )}
 
-          {step === 'exercise' && (
-            <div className="w-full">
-              {exerciseLoading && !scenario && (
-                <div className="mb-2 text-xs text-lab-muted">正在生成场景与预填…</div>
-              )}
-              <ExerciseForm
-                scenario={scenario || '…'}
-                prefillHint={prefillHint}
-                values={fieldValues}
-                onChange={handleFieldChange}
-                onSubmit={handleSubmitExercise}
-                disabled={scoreLoading || exerciseLoading}
-                attemptNumber={attemptNumber}
-                ownProductName={projectName}
-              />
-              {scenario && (
+          <div className="min-h-0 w-full flex-1 overflow-y-auto px-6 pb-4 md:px-8">
+            {step === 'intro' && (
+              <div className="w-full rounded-xl border border-lab-border-subtle bg-lab-overlay p-6 shadow-card md:p-8">
+                <p className="text-sm leading-relaxed text-lab-ink font-body">
+                  本轮走通：<strong>L1 概念 → L2 方法 → L3 操作清单 → L4 Forest 案例带读 → L5 场景练习</strong>
+                  ，最后 <strong>AI 评分（十分制：四维度完整性 0–4 + 深度 0–4 + 洞察 0–2）</strong>
+                  与<strong>实时演练追问</strong>。L1–L4 为内置教材（零等待）；L5 需配置 API Key 生成场景与评分。
+                </p>
+                <p className="mt-3 text-sm leading-relaxed text-lab-muted font-body">
+                  <strong className="text-lab-ink">与左侧项目：</strong>
+                  L1–L4 教通用框架；进入 <strong>L5</strong> 后题干中的己方应与<strong>当前项目同名</strong>，竞品为
+                  <strong>真实品牌</strong>。数字与引用请自行交叉验证（模型无法实时联网）。
+                </p>
                 <button
                   type="button"
-                  onClick={regenerateScenario}
-                  className="mt-2 w-full text-xs text-lab-muted underline hover:text-lab-accent-warm"
+                  onClick={() => setStep(1)}
+                  className="mt-6 w-full rounded-lab py-2.5 text-sm font-medium lab-btn-primary font-sans"
                 >
-                  重新生成场景
+                  开始学习（L1）
                 </button>
-              )}
-            </div>
-          )}
+              </div>
+            )}
 
-          {step === 'feedback' && (
-            <div className="w-full space-y-4">
-              <AIFeedbackPanel
-                feedback={feedback}
-                loading={scoreLoading}
-                onGoLive={handleGoLive}
-              />
-              <button
-                type="button"
-                onClick={resetRound}
-                className="w-full rounded-lab border border-lab-border-subtle py-2 text-sm text-lab-muted hover:bg-lab-accent-dim hover:text-lab-accent-warm"
-              >
-                再来一轮
-              </button>
-            </div>
-          )}
-        </div>
+            {step === 1 && <L1ConceptCard onNext={() => setStep(2)} />}
+
+            {step === 2 && <L2MethodFrame onNext={() => setStep(3)} />}
+
+            {step === 3 && (
+              <L3OperationChecklist onNext={() => setStep(4)} onSkipToCase={() => setStep(4)} />
+            )}
+
+            {step === 4 && (
+              <L4CaseStudy onNext={() => setStep(5)} onPrev={() => setStep(3)} />
+            )}
+
+            {step === 5 && (
+              <div className="w-full">
+                {exerciseLoading && !scenario && (
+                  <div className="mb-2 text-xs text-lab-muted">正在生成场景与预填…</div>
+                )}
+                <L5ExercisePanel
+                  projectId={activeProjectId}
+                  scenario={scenario}
+                  prefillHint={prefillHint}
+                  initialFields={fieldValues}
+                  ownProductName={projectName}
+                  attemptNumber={attemptNumber}
+                  disabled={exerciseLoading || !scenario.trim()}
+                  scoreLoading={scoreLoading}
+                  onSubmitAnswers={handleSubmitExercise}
+                />
+                {scenario && (
+                  <button
+                    type="button"
+                    onClick={regenerateScenario}
+                    className="mt-2 w-full text-xs text-lab-muted underline hover:text-lab-accent-warm"
+                  >
+                    重新生成场景
+                  </button>
+                )}
+              </div>
+            )}
+
+            {step === 'feedback' && (
+              <div className="w-full space-y-4">
+                <AIFeedbackPanel
+                  feedback={feedback}
+                  loading={scoreLoading}
+                  onGoLive={handleGoLive}
+                  onOpenMockInterview={() => {
+                    setMockSessionKey((k) => k + 1)
+                    setMockInterviewOpen(true)
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={resetRound}
+                  className="w-full rounded-lab border border-lab-border-subtle py-2 text-sm text-lab-muted hover:bg-lab-accent-dim hover:text-lab-accent-warm"
+                >
+                  再来一轮（从 L1 重新走）
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      <MockInterviewModal
+        sessionKey={mockSessionKey}
+        isOpen={mockInterviewOpen}
+        onClose={() => setMockInterviewOpen(false)}
+        projectName={projectName}
+        scenario={scenario}
+        fieldValues={fieldValues}
+        feedback={feedback}
+        hintCountsByField={lastHintCounts}
+      />
     </div>
   )
 }

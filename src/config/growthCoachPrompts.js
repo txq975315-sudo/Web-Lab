@@ -3,6 +3,7 @@
  */
 
 import { STRUCTURED_OUTPUT_RULES_ZH } from './structuredTextSpec.js'
+import { COMPETITIVE_L5_FIELD_ORDER } from './hintLevels.js'
 
 /** 所有生成环节：强调公开信息锚点 + 成败案例 + 禁止捏造来源（模型无实时联网，用语须诚实） */
 const PUBLIC_REALITY_BLOCK = `
@@ -84,12 +85,44 @@ competitorName, price, availability, packaging, performance, easeOfUse, assuranc
 方法论强调：${methodologyName}`
 }
 
-export function buildScoreExercisePrompt(scenario, fieldsJson, methodologyName) {
-  return `你是资深产品经理面试官。用户对「竞品分析」模板提交了如下练习，请按 $APPEALS 相关维度逐项 1-5 分打分（整数），并给出口语化短评。
+export function buildScoreExercisePrompt(scenario, fieldsJson, methodologyName, hintCountsByField) {
+  const hintLines =
+    hintCountsByField && typeof hintCountsByField === 'object'
+      ? COMPETITIVE_L5_FIELD_ORDER.map((k) => `${k}: ${Math.min(3, Math.max(0, Number(hintCountsByField[k]) || 0))}`).join('；')
+      : ''
+  const hintBlock = hintLines
+    ? `
+【各字段「给点提示」点击次数（每字段 0–3）】
+${hintLines}
+说明：请在「四维度完整性」「回答深度」相关 rubricComments 中**适度**体现提示依赖度——多次依赖提示可能表示仍在摸索框架，但若最终作答事实充分、结构完整，则不应仅因提示次数高而机械压分；可点名 1～2 个「高提示次数且仍薄」的 $APPEALS 字段作建设性提醒。`
+    : ''
+
+  return `你是资深产品经理面试官。用户对「竞品分析」模板提交了如下练习（字段为 $APPEALS 拆解项）。请**不要**再按每个 APPEALS 字段单独打分；改用下面**唯一**的三分项量表，总分 0–10（整数）。
+${hintBlock}
+
+【三分项量表（须严格遵守分值上限）】
+1) **fourDimensionsCompleteness（0–4）四维度分析完整性**  
+   综合用户全部作答，判断是否覆盖商业拆解的四个视角（不要求逐字出现小标题，看实质内容）：  
+   · **用户视角层**：谁在用、价值、口碑/评价线索  
+   · **产品功能层**：功能对比、差异、性能/包装等硬对比  
+   · **用户体验层**：易用、路径、生命周期、可获得性等体验侧  
+   · **业务视角层**：定价、增长/获客、商业模式、社会接受度等  
+   0=几乎未覆盖；1=仅覆盖其中 1 层且浅；2=覆盖 2 层或多层但很浅；3=覆盖 3 层且有一定论据；4=四层都有合理展开与论据。
+
+2) **answerDepth（0–4）任务回答深度**  
+   场景若提出了具体问题（如体验差异、商业化、机会风险等），看用户是否在作答中**落到具体产品事实、可核对线索或清晰逻辑链**，而非空泛观点。  
+   0=未回应或跑题；1=有观点几乎无事实；2=部分问题有事实、整体偏浅；3=多数要点有事实或合理推断；4=各要点均有具体事实/对比支撑，逻辑完整。
+
+3) **differentiationInsight（0–2）差异化洞察**  
+   0=未体现差异或仅罗列功能；1=有差异思考但不够深或未落到策略；2=指出可执行的机会点/风险与己方定位的关联。
+
+【总分】overallScore 必须等于三项分数之和（0–10 的整数），不得与三项之和不一致。
+
 ${PUBLIC_REALITY_BLOCK}
 ${STRUCTURED_OUTPUT_RULES_ZH}
-- 点评与 blindSpot、followUpHints 应体现**现实操盘**：可点到同类真实产品在公开层面的成败教训（一句话类比即可），不要把点评写成纯空话；仍禁止捏造内部数据与虚假来源。
-- dimensionComments、blindSpot、methodologyBind：每条须含清晰层次——至少用 \\n\\n 分段，优先用「## 简评」+ 列表写维度点评；禁止各字段只有一两句无标题、无列表的通段文字。
+- 三条 rubricComments 须**引用用户作答中的具体字句或观点**（可短摘），再写评价；禁止空泛套话。
+- blindSpot、methodologyBind、followUpHints：仍须体现**现实操盘**与诚实边界；禁止捏造内部数据与虚假来源。
+- rubricComments、blindSpot、methodologyBind：每条至少用 \\n\\n 分段，优先「## 简评」+ 列表；禁止只有一两句无结构的通段。
 
 场景：
 ${scenario}
@@ -102,37 +135,25 @@ ${fieldsJson}
 只输出一个 JSON 代码块，结构：
 \`\`\`json
 {
-  "overallScore": 1,
-  "dimensionScores": {
-    "price": 3,
-    "availability": 3,
-    "packaging": 3,
-    "performance": 3,
-    "easeOfUse": 3,
-    "assurance": 3,
-    "lifeCycle": 3,
-    "social": 3,
-    "ourAdvantage": 3
+  "overallScore": 8,
+  "rubricScores": {
+    "fourDimensionsCompleteness": 3,
+    "answerDepth": 3,
+    "differentiationInsight": 2
   },
-  "dimensionComments": {
-    "price": "## 简评\\n- **亮点**：…\\n- **缺口**：…",
-    "availability": "同上结构",
-    "packaging": "…",
-    "performance": "…",
-    "easeOfUse": "…",
-    "assurance": "…",
-    "lifeCycle": "…",
-    "social": "…",
-    "ourAdvantage": "…"
+  "rubricComments": {
+    "fourDimensionsCompleteness": "## 简评\\n- **亮点**：…（引用用户原文）\\n- **缺口**：…",
+    "answerDepth": "…",
+    "differentiationInsight": "…"
   },
-  "weakestDimensions": ["easeOfUse", "social"],
+  "weakestAspects": ["answerDepth"],
   "blindSpot": "## 最大盲区\\n- **问题**：…\\n- **为何重要**：…",
   "methodologyBind": "## 方法论对齐\\n- **主方法论**：…\\n- **辅方法论**：…",
   "followUpHints": ["给模拟追问用的要点1", "要点2"]
 }
 \`\`\`
 
-weakestDimensions 取评分最低的 1-2 个 key（来自 dimensionScores）。overallScore 为 1-5 的总括（可与单项平均略有出入）。`
+weakestAspects：从 rubricScores 三项 key 中选分数最低的 1–2 个（并列低则都列出）：\`fourDimensionsCompleteness\` | \`answerDepth\` | \`differentiationInsight\`。`
 }
 
 export function buildCoachHandoffMessage({ projectName, scenario, userFieldsSummary, feedbackSummary }) {
@@ -147,4 +168,73 @@ ${userFieldsSummary}
 AI 初步反馈：${feedbackSummary}
 
 请你扮演温和、探究型的面试官。**追问请尽量贴近真实商业现实**：可引用同类公开成败案例作类比（一句话），帮助我把分析与落地动作联系起来；不要编造内部数据。针对我最薄弱的 1～2 个维度各提一个追问；若我回复「不知道」，请给引导提示而非直接给答案。`
+}
+
+/**
+ * 内嵌模拟追问 · 首轮：基于评分产出第一个追问（严格 JSON）
+ */
+export function buildMockInterviewOpenPrompt({
+  projectName,
+  scenario,
+  fieldsJson,
+  overallScore,
+  weakestAspects,
+  blindSpot,
+  followUpHints,
+}) {
+  const wa = Array.isArray(weakestAspects) ? weakestAspects.join('、') : String(weakestAspects || '')
+  const fh = Array.isArray(followUpHints) ? followUpHints.join('\n- ') : String(followUpHints || '')
+  return `你是「严格的合伙人」，与用户共同对练习结果负责；语气探究、不挑衅，不给现成答案。
+${PUBLIC_REALITY_BLOCK}
+${STRUCTURED_OUTPUT_RULES_ZH}
+
+【任务】用户刚完成竞品分析练习并得到 AI 评分。请基于评分薄弱项与盲区，提出**第一轮**苏格拉底式追问（一个问题即可，可含 1～2 个小子问）。
+
+项目：${projectName || '当前项目'}
+场景（摘要）：${(scenario || '').slice(0, 600)}${(scenario || '').length > 600 ? '…' : ''}
+用户作答（JSON）：${fieldsJson}
+总分：${overallScore}
+分项薄弱（weakestAspects）：${wa || '—'}
+盲区摘要：${(blindSpot || '').slice(0, 400)}
+追问线索（followUpHints）：${fh || '—'}
+
+只输出一个 JSON 代码块：
+\`\`\`json
+{
+  "openingQuestion": "string，Markdown，1～3 段，直接对用户说话",
+  "focusLabel": "本轮聚焦（中文短标签，如：定价与壁垒）"
+}
+\`\`\``
+}
+
+/**
+ * 内嵌模拟追问 · 后续轮：根据用户回答继续或收尾
+ */
+export function buildMockInterviewTurnPrompt({ transcript, userAnswer, round, maxRounds }) {
+  return `你是「严格的合伙人」，探究但不挑衅；用户已回答你的追问。
+${PUBLIC_REALITY_BLOCK}
+${STRUCTURED_OUTPUT_RULES_ZH}
+
+【当前轮次】用户第 ${round} 轮回答（最多用户答 ${maxRounds} 轮后应收尾）。
+
+【已发生对话（Markdown）】
+${transcript}
+
+【用户本轮回答】
+${userAnswer}
+
+只输出一个 JSON 代码块：
+\`\`\`json
+{
+  "coachMessage": "string，Markdown：先简短反馈用户本轮要点，再决定是否继续追问",
+  "followUpQuestion": "string 或 null — 若还需追问则给出下一问；若收尾则为 null",
+  "done": "boolean",
+  "closingSummary": "string，Markdown — done 为 true 时必填：2～4 句收束 + 一条下一步行动建议；否则空字符串"
+}
+\`\`\`
+
+规则：
+- 若用户回答已足够扎实，或已达信息边界，设 done=true 且 followUpQuestion=null。
+- 若 round>=${maxRounds}，必须 done=true 并给出 closingSummary。
+- 不要编造内部数据；不确定写「待核实」。`
 }

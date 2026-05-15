@@ -50,16 +50,21 @@ export function saveSkillProgress(progress) {
 
 /**
  * 完成一轮练习后记分：方法论维度 +1（满分感知）、模板统计
+ * @param {object} [options]
+ * @param {5|10} [options.maxScore=10] — 总分制；达到满分的 60% 才给方法论维度加分（5 分制时即 ≥3，10 分制时即 ≥6）
  */
-export function recordCoachSession(templateKey, methodologyId, overallScore) {
+export function recordCoachSession(templateKey, methodologyId, overallScore, options = {}) {
+  const maxScore = options.maxScore === 5 ? 5 : 10
+  const score = Number(overallScore) || 0
+  const passThreshold = maxScore * 0.6
   const p = loadSkillProgress()
   const prev = p.byTemplate[templateKey] || { attempts: 0 }
   p.byTemplate[templateKey] = {
     attempts: prev.attempts + 1,
-    lastOverall: overallScore,
+    lastOverall: score,
     lastAt: new Date().toISOString()
   }
-  if (methodologyId && p.dimensions[methodologyId] != null && overallScore >= 3) {
+  if (methodologyId && p.dimensions[methodologyId] != null && score >= passThreshold) {
     p.dimensions[methodologyId] = Math.min(100, (p.dimensions[methodologyId] || 0) + 4)
   }
   saveSkillProgress(p)
