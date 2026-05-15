@@ -178,16 +178,9 @@ export default function GrowthCoachPanel() {
   }
 
   return (
-    <div className="wb-lab-bridge relative flex h-full flex-col overflow-hidden">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.5]"
-        style={{
-          background:
-            'radial-gradient(ellipse 120% 80% at 50% -20%, color-mix(in srgb, var(--wb-mint) 90%, transparent), transparent)',
-        }}
-      />
+    <div className="wb-lab-bridge relative flex min-h-0 flex-col overflow-hidden">
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden pb-4 pt-3">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4 pt-3">
         <div className="wb-thread flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="mb-3 flex-shrink-0 px-6 md:px-8">
           <h2 className="font-display text-base font-semibold text-lab-ink">成长教练 · P0</h2>
